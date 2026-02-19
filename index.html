@@ -3,461 +3,315 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer</title>
+    <title>Neon Star Racer | Perfected</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
         :root {
             --pink: #ff00ff;
             --cyan: #00e0ff;
-            --red: #ff3333;
-            --green: #33ff33;
             --gold: #FFD700;
         }
 
-        *, *::before, *::after {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #000; 
+            color: #fff; 
+            font-family: 'Inter', sans-serif; 
+            overflow: hidden; 
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #0d0d1a;
-            font-family: 'Inter', sans-serif;
-            touch-action: manipulation;
+        /* Scanline / CRT Effect */
+        body::after {
+            content: " ";
+            position: absolute; inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            z-index: 100;
+            pointer-events: none;
         }
 
         #gameContainer {
+            position: relative;
             width: 100%;
-            height: 100%;
+            max-width: 450px;
+            height: 90vh;
+            border: 2px solid var(--cyan);
+            box-shadow: 0 0 30px rgba(0, 224, 255, 0.3);
+            background: #0d0d1a;
+        }
+
+        #ui-layer {
+            position: absolute; inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-            position: relative;
+            justify-content: space-between;
         }
 
-        h1 {
+        .hud-text {
             font-family: 'VT323', monospace;
-            color: var(--pink);
-            text-shadow: 0 0 12px var(--pink), 0 0 24px #000;
-            font-size: clamp(2.2rem, 9vw, 4.8rem);
-            margin: 0.4rem 0 1rem;
-            letter-spacing: 3px;
-            z-index: 20;
+            text-shadow: 0 0 10px currentColor;
         }
 
-        #gameCanvas {
-            width: 92%;
-            height: auto;
-            max-width: 420px;
-            aspect-ratio: 3 / 5;
-            border: 4px solid var(--cyan);
-            box-shadow: 0 0 40px var(--cyan), inset 0 0 20px var(--cyan);
-            border-radius: 16px;
-            touch-action: none;
-            background: transparent;
-            z-index: 10;
-        }
+        #score { color: var(--pink); font-size: 2.5rem; }
+        #timer { color: var(--gold); font-size: 2.5rem; text-align: right; }
 
-        #scoreDisplay, #timerDisplay {
-            font-family: 'VT323', monospace;
-            font-size: clamp(1.8rem, 7vw, 3.2rem);
-            text-shadow: 0 0 12px currentColor;
-            margin: 0.6rem 0;
-            z-index: 20;
-        }
-        #scoreDisplay { color: var(--red); }
-        #timerDisplay {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            color: var(--green);
-            background: rgba(0,0,0,0.65);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            border: 2px solid var(--green);
-        }
+        canvas { width: 100%; height: 100%; display: block; cursor: none; }
 
-        #startButton, #creditsButton {
-            background: linear-gradient(45deg, var(--gold), #9B59B6);
-            border: none;
-            color: white;
-            padding: 1.2rem 3rem;
-            font-size: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 0 20px var(--gold), 0 0 40px #9B59B6;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            border-radius: 12px;
-            font-weight: bold;
-            margin: 1.5rem 0;
-            min-width: 260px;
-            z-index: 20;
-        }
-        #startButton:active, #creditsButton:active { transform: scale(0.96); }
-
-        #creditsOverlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.94);
-            display: none;
+        /* Start Overlay */
+        #overlay {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 50;
+            display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 100;
-            color: var(--cyan);
-            font-family: 'VT323', monospace;
-            cursor: pointer;
-            padding: 1rem;
-        }
-
-        #creditsText {
-            font-size: clamp(2rem, 7vw, 4.2rem);
-            color: var(--pink);
-            text-shadow: 0 0 25px var(--pink);
             text-align: center;
-            animation: roll 24s linear forwards;
         }
 
-        @keyframes roll {
-            0%   { transform: translateY(120vh); }
-            100% { transform: translateY(-160%); }
+        .btn {
+            background: transparent;
+            border: 2px solid var(--pink);
+            color: var(--pink);
+            padding: 15px 40px;
+            font-family: 'VT323', monospace;
+            font-size: 2rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px var(--pink);
+            transition: 0.2s;
         }
+        .btn:hover { background: var(--pink); color: #000; }
 
-        #skipText {
-            margin-top: 2.5rem;
-            font-size: 1.6rem;
-            color: var(--cyan);
-            text-shadow: 0 0 18px var(--cyan);
+        /* Game Shake Animation */
+        .shake { animation: shakeAnim 0.2s infinite; }
+        @keyframes shakeAnim {
+            0% { transform: translate(0,0); }
+            25% { transform: translate(2px, 2px); }
+            50% { transform: translate(-2px, -2px); }
+            75% { transform: translate(2px, -2px); }
+            100% { transform: translate(0,0); }
         }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
-    <h1>NEON STAR RACER</h1>
-    <div id="timerDisplay" style="display:none;">TIME: 60</div>
-    <div id="scoreDisplay">Score: 0</div>
-    <canvas id="gameCanvas"></canvas>
-    <button id="startButton">START RACE</button>
-    <button id="creditsButton" style="display:none;">VIEW CREDITS</button>
-</div>
-
-<div id="creditsOverlay">
-    <div id="creditsText">
-        NEON STAR RACER<br>────────────<br>
-        YOU SURVIVED THE GRID<br>────────────<br>
-        Final Score: <span id="finalScore">0</span><br>────────────<br>
-        Created in Neon Fury<br>by Olympus By Merlin $Dropee<br>────────────<br>
-        THE END
+    <div id="ui-layer">
+        <div style="display: flex; justify-content: space-between;">
+            <div id="score" class="hud-text">0000</div>
+            <div id="timer" class="hud-text">60</div>
+        </div>
     </div>
-    <div id="skipText">TAP ANYWHERE TO RESTART</div>
+
+    <div id="overlay">
+        <h1 class="hud-text" style="color:var(--cyan); font-size: 3rem; margin-bottom: 20px;">NEON_STAR_RACER</h1>
+        <button class="btn" onclick="startGame()">Initiate Race</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 </div>
 
-<iframe id="bgVideo" 
-    src="https://www.youtube.com/embed/jwHtU4Zbzu0?autoplay=1&mute=1&controls=0&modestbranding=1&iv_load_policy=3&rel=0&loop=1&playlist=jwHtU4Zbzu0&playsinline=1&enablejsapi=1"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    frameborder="0"
-    style="position:fixed; inset:0; width:100%; height:100%; border:none; z-index:-1; pointer-events:none;">
-</iframe>
+<iframe id="bgAudio" style="display:none" src=""></iframe>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script type="module">
+<script>
     const canvas = document.getElementById('gameCanvas');
-    const scoreDisplay = document.getElementById('scoreDisplay');
-    const timerDisplay = document.getElementById('timerDisplay');
-    const startButton = document.getElementById('startButton');
-    const creditsButton = document.getElementById('creditsButton');
-    const creditsOverlay = document.getElementById('creditsOverlay');
-    const finalScoreEl = document.getElementById('finalScore');
-    const bgVideo = document.getElementById('bgVideo');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('gameContainer');
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    const overlay = document.getElementById('overlay');
 
-    // === RESIZING – Critical for iframe/mobile ===
-    function resize() {
-        const container = document.getElementById('gameContainer');
-        if (!container) return;
-
-        const w = container.clientWidth * 0.94;
-        const h = w * (5 / 3);
-
-        canvas.width = w;
-        canvas.height = h;
-        canvas.style.width = w + 'px';
-        canvas.style.height = h + 'px';
-
-        if (renderer && camera) {
-            renderer.setSize(w, h);
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-        }
-    }
-
-    // Observe container size changes (best for iframes)
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(document.getElementById('gameContainer'));
-
-    // Multiple forced resizes for mobile/iframe timing bugs
-    window.addEventListener('load', resize);
-    window.addEventListener('resize', resize);
-    setTimeout(resize, 0);
-    setTimeout(resize, 100);
-    setTimeout(resize, 300);
-    setTimeout(resize, 600);
-    setTimeout(resize, 1000);
-    setTimeout(resize, 2000);
-
-    // === GAME SETUP ===
-    const GAME_DURATION = 60;
-    let animationFrameId;
-
-    let game = {
-        isRunning: false,
-        score: 0,
-        speed: 3.5,
-        maxSpeed: 12,
-        speedIncreaseRate: 0.004,
-        timeRemaining: GAME_DURATION,
-        timerInterval: null
+    let gameActive = false;
+    let score = 0;
+    let timeLeft = 60;
+    let speed = 5;
+    let obstacles = [];
+    let particles = [];
+    
+    const pod = {
+        x: 0,
+        y: 0,
+        targetX: 0,
+        width: 40,
+        height: 20,
+        tilt: 0
     };
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000); // aspect updated in resize
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setClearColor(0x0d0d1a, 0.35);
+    function resize() {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        pod.x = canvas.width / 2;
+        pod.y = canvas.height * 0.85;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-    scene.add(new THREE.AmbientLight(0x404040));
-    const light = new THREE.PointLight(0xffffff, 1.4, 100);
-    light.position.set(0, 30, 10);
-    scene.add(light);
+    // Input Handling
+    const handleInput = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        pod.targetX = clientX - rect.left;
+    };
+    canvas.addEventListener('mousemove', handleInput);
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
 
-    const podracer = new THREE.Group();
-
-    // Engines
-    const engineGeo = new THREE.CylinderGeometry(0.5, 0.4, 3, 32);
-    const engineMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
-    const leftEngine = new THREE.Mesh(engineGeo, engineMat);
-    leftEngine.rotation.z = Math.PI / 2;
-    leftEngine.position.set(-1, 0, -1.5);
-    const rightEngine = leftEngine.clone();
-    rightEngine.position.set(-1, 0, 1.5);
-
-    // Energy Binder
-    const binderGeo = new THREE.TorusGeometry(2, 0.08, 16, 100, Math.PI);
-    const binderMat = new THREE.MeshBasicMaterial({ color: 0xbf00ff });
-    const energyBinder = new THREE.Mesh(binderGeo, binderMat);
-    energyBinder.rotation.y = Math.PI / 2;
-
-    // Cockpit
-    const cockpitGeo = new THREE.CapsuleGeometry(0.4, 0.8, 8, 16);
-    const cockpitMat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
-    const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
-    cockpit.rotation.z = Math.PI / 2;
-    cockpit.position.set(-4, 0, 0);
-
-    // Cables
-    const cableGeo = new THREE.CylinderGeometry(0.03, 0.03, 6, 8);
-    const cableMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
-    const cableL = new THREE.Mesh(cableGeo, cableMat);
-    cableL.rotation.z = Math.PI / 2;
-    cableL.position.set(-2.5, 0, -1);
-    const cableR = cableL.clone();
-    cableR.position.set(-2.5, 0, 1);
-
-    podracer.add(leftEngine, rightEngine, energyBinder, cockpit, cableL, cableR);
-    podracer.scale.set(0.6, 0.6, 0.6);
-    podracer.position.set(0, -8, 0);
-    podracer.rotation.x = Math.PI / 2;
-    scene.add(podracer);
-
-    camera.position.set(0, 25, 0);
-    camera.lookAt(0, 0, 0);
-
-    let podTargetX = 0;
-    const trackLeft = -12;
-    const trackRight = 12;
-
-    let obstacles = [];
-    let obstacleMeshes = [];
-    let obstacleTimer = 0;
-    let obstacleInterval = 80;
-
-    function createObstacleMesh(obs) {
-        let mesh;
-        if (obs.type === 'gate') {
-            const group = new THREE.Group();
-            const gateMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.9 });
-            const barGeo = new THREE.BoxGeometry(1, 0.6, 12);
-            const leftBar = new THREE.Mesh(barGeo, gateMat);
-            leftBar.position.x = obs.leftEnd + obs.gapWidth / 2;
-            group.add(leftBar);
-            const rightBar = leftBar.clone();
-            rightBar.position.x = obs.rightStart + (30 - obs.rightStart) / 2;
-            group.add(rightBar);
-            mesh = group;
-        } else {
-            const rockGeo = new THREE.SphereGeometry(1.2, 12, 12);
-            const rockMat = new THREE.MeshBasicMaterial({ color: 0xff8c00 });
-            mesh = new THREE.Mesh(rockGeo, rockMat);
-        }
-        mesh.position.set(obs.x, obs.y, 0);
-        scene.add(mesh);
-        return mesh;
+    function createObstacle() {
+        const size = 20 + Math.random() * 30;
+        return {
+            x: Math.random() * (canvas.width - size),
+            y: -50,
+            width: size,
+            height: size,
+            color: Math.random() > 0.5 ? '#ff00ff' : '#00e0ff',
+            glow: 15 + Math.random() * 20
+        };
     }
 
-    function checkCollision() {
-        const podX = podracer.position.x;
-        const podY = podracer.position.y;
-        for (const obs of obstacles) {
-            if (Math.abs(podY - obs.y) < 3) {
-                if (obs.type === 'gate') {
-                    if (podX < obs.leftEnd || podX > obs.rightStart) return true;
-                } else {
-                    if (Math.hypot(podX - obs.x, podY - obs.y) < 3) return true;
-                }
-            }
+    function spawnParticle(x, y, color) {
+        for(let i=0; i<5; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0,
+                color
+            });
         }
-        return false;
     }
 
     function update() {
-        if (!game.isRunning) return;
+        if (!gameActive) return;
 
-        if (game.timeRemaining <= 0) {
-            endGame("YOU SURVIVED!", true);
-            return;
+        // Pod Physics (Tightened response)
+        const dx = pod.targetX - pod.x;
+        pod.x += dx * 0.15;
+        pod.tilt = dx * 0.05;
+
+        // Obstacle Logic
+        if (Math.random() < 0.05 + (speed * 0.005)) {
+            obstacles.push(createObstacle());
         }
 
-        podracer.position.x += (podTargetX - podracer.position.x) * 0.25;
-        podracer.position.x = Math.max(trackLeft, Math.min(trackRight, podracer.position.x));
-
-        game.score += game.speed / 12;
-        scoreDisplay.textContent = `Score: ${Math.floor(game.score)}`;
-        game.speed = Math.min(game.maxSpeed, game.speed + game.speedIncreaseRate);
-
-        obstacleTimer++;
-        if (obstacleTimer > obstacleInterval) {
-            const isGate = Math.random() > 0.35;
-            let obs;
-            if (isGate) {
-                const gapWidth = 5 + Math.random() * 4;
-                const leftEnd = trackLeft + Math.random() * (trackRight - trackLeft - gapWidth - 4);
-                obs = { type: 'gate', y: 30, leftEnd, gapWidth, rightStart: leftEnd + gapWidth };
-            } else {
-                obs = { type: 'missile', x: trackLeft + Math.random() * (trackRight - trackLeft), y: 30 };
+        obstacles.forEach((obs, index) => {
+            obs.y += speed;
+            
+            // Collision detection
+            if (obs.y + obs.height > pod.y && 
+                obs.y < pod.y + pod.height &&
+                obs.x + obs.width > pod.x - pod.width/2 &&
+                obs.x < pod.x + pod.width/2) {
+                gameOver();
             }
-            obstacles.push(obs);
-            obstacleMeshes.push(createObstacleMesh(obs));
-            obstacleTimer = 0;
-            obstacleInterval = Math.max(35, obstacleInterval - 0.3);
-        }
 
-        obstacles.forEach((obs, i) => {
-            obs.y -= game.speed * 0.6;
-            obstacleMeshes[i].position.y = obs.y;
-            if (obs.type === 'gate') {
-                obstacleMeshes[i].children.forEach(child => child.position.y = obs.y);
+            if (obs.y > canvas.height) {
+                obstacles.splice(index, 1);
+                score += 10;
+                scoreEl.innerText = score.toString().padStart(4, '0');
+                speed += 0.05;
             }
         });
 
-        for (let i = obstacles.length - 1; i >= 0; i--) {
-            if (obstacles[i].y < -15) {
-                scene.remove(obstacleMeshes[i]);
-                obstacles.splice(i, 1);
-                obstacleMeshes.splice(i, 1);
-            }
-        }
+        // Particle Logic
+        particles.forEach((p, i) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02;
+            if (p.life <= 0) particles.splice(i, 1);
+        });
 
-        if (checkCollision()) {
-            endGame("POD CRASHED!", false);
-            return;
-        }
-
-        podracer.rotation.z = Math.sin(Date.now() * 0.002) * 0.1;
-
-        renderer.render(scene, camera);
-        animationFrameId = requestAnimationFrame(update);
+        draw();
+        requestAnimationFrame(update);
     }
 
-    function endGame(title, showCredits = false) {
-        game.isRunning = false;
-        cancelAnimationFrame(animationFrameId);
-        clearInterval(game.timerInterval);
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (showCredits) {
-            finalScoreEl.textContent = Math.floor(game.score);
-            creditsButton.style.display = 'block';
-            creditsButton.textContent = "VIEW CREDITS";
-            creditsButton.onclick = () => {
-                bgVideo.src = "https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1&mute=0&controls=0&modestbranding=1&iv_load_policy=3&rel=0&playsinline=1";
-                creditsOverlay.style.display = 'flex';
-                creditsButton.style.display = 'none';
-                creditsOverlay.onclick = () => {
-                    creditsOverlay.style.display = 'none';
-                    bgVideo.src = "https://www.youtube.com/embed/jwHtU4Zbzu0?autoplay=1&mute=1&controls=0&modestbranding=1&iv_load_policy=3&rel=0&loop=1&playlist=jwHtU4Zbzu0&playsinline=1";
-                    startGame();
-                };
-            };
-        } else {
-            alert(title + "\nScore: " + Math.floor(game.score) + "\n\nTap OK to restart.");
-            startGame();
+        // Draw Road/Grid Lines
+        ctx.strokeStyle = 'rgba(0, 224, 255, 0.1)';
+        ctx.lineWidth = 2;
+        for(let i=0; i<canvas.width; i+=40) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvas.height);
+            ctx.stroke();
         }
+
+        // Draw Particles
+        particles.forEach(p => {
+            ctx.fillStyle = `rgba(255, 255, 255, ${p.life})`;
+            ctx.fillRect(p.x, p.y, 2, 2);
+        });
+
+        // Draw Obstacles
+        obstacles.forEach(obs => {
+            ctx.shadowBlur = obs.glow;
+            ctx.shadowColor = obs.color;
+            ctx.fillStyle = obs.color;
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            ctx.shadowBlur = 0;
+        });
+
+        // Draw Pod (The Racer)
+        ctx.save();
+        ctx.translate(pod.x, pod.y);
+        ctx.rotate(pod.tilt);
+        
+        // Engine Glow
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = var(--cyan);
+        ctx.fillStyle = var(--cyan);
+        ctx.beginPath();
+        ctx.moveTo(-pod.width/2, 0);
+        ctx.lineTo(pod.width/2, 0);
+        ctx.lineTo(0, -pod.height);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
     }
 
     function startGame() {
-        game.isRunning = true;
-        game.score = 0;
-        game.speed = 3.5;
-        game.timeRemaining = GAME_DURATION;
+        gameActive = true;
+        score = 0;
+        timeLeft = 60;
+        speed = 6;
         obstacles = [];
-        obstacleMeshes = [];
-        obstacleInterval = 80;
-        podTargetX = 0;
-        podracer.position.x = 0;
-
-        timerDisplay.style.display = 'block';
-        scoreDisplay.textContent = 'Score: 0';
-        timerDisplay.textContent = 'TIME: 60';
-        creditsButton.style.display = 'none';
-
-        clearInterval(game.timerInterval);
-        game.timerInterval = setInterval(() => {
-            game.timeRemaining--;
-            timerDisplay.textContent = `TIME: ${game.timeRemaining}`;
-            if (game.timeRemaining <= 0) timerDisplay.textContent = 'TIME: 0';
+        overlay.style.display = 'none';
+        
+        const timerInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                winGame();
+            }
         }, 1000);
-
-        bgVideo.contentWindow?.postMessage('{"event":"command","func":"unMute","args":[]}', '*');
 
         update();
     }
 
-    function updateTargetX(e) {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const normX = (clientX - rect.left) / rect.width * 2 - 1;
-        podTargetX = normX * 12;
+    function gameOver() {
+        gameActive = false;
+        container.classList.add('shake');
+        setTimeout(() => container.classList.remove('shake'), 500);
+        alert("SYSTEM_FAILURE: POD_CRASHED\nFINAL_SCORE: " + score);
+        location.reload();
     }
 
-    canvas.addEventListener('mousemove', e => game.isRunning && updateTargetX(e));
-    canvas.addEventListener('touchmove', e => { e.preventDefault(); game.isRunning && updateTargetX(e); }, { passive: false });
-    canvas.addEventListener('mousedown', e => game.isRunning && updateTargetX(e));
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); game.isRunning && updateTargetX(e); }, { passive: false });
-
-    startButton.addEventListener('click', startGame);
-    startButton.addEventListener('touchstart', e => { e.preventDefault(); startGame(); }, { passive: false });
-
-    function teaserAnimate() {
-        podracer.rotation.y += 0.005;
-        renderer.render(scene, camera);
-        requestAnimationFrame(teaserAnimate);
+    function winGame() {
+        gameActive = false;
+        alert("MISSION_COMPLETE: GRID_SURVIVED\nFINAL_SCORE: " + score);
+        location.reload();
     }
-    teaserAnimate();
 </script>
 </body>
 </html>
