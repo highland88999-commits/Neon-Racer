@@ -9,7 +9,6 @@
         :root { --pink: #ff00ff; --cyan: #00e0ff; --red: #ff3131; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #000; overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        
         #gameContainer {
             position: relative;
             width: 100vw; height: 100vh;
@@ -18,16 +17,12 @@
             background: #05050a;
             touch-action: none;
         }
-
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 20; padding: 20px; display: flex; justify-content: space-between; font-family: 'VT323', monospace; }
         .stat { font-size: 2rem; text-shadow: 0 0 10px rgba(0,224,255,0.5); }
-        
         .overlay { 
             position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; 
-            padding: 20px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;
         }
-        
         .btn {
             background: none; border: 2px solid var(--pink); color: var(--pink);
             padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem;
@@ -35,35 +30,21 @@
             transition: all 0.2s;
         }
         .btn:hover { background: var(--pink); color: #000; box-shadow: 0 0 25px var(--pink); }
-
         #winOverlay h1 { color: var(--cyan); font-size: 3.2rem; margin-bottom: 15px; text-shadow: 0 0 20px var(--cyan); }
         #winOverlay p { color: #fff; font-size: 1.8rem; margin-bottom: 30px; }
-
         #videoOverlay { background: #000; position: relative; }
-        #rewardVideo, #bgAudioVideo { width: 100%; height: 100%; display: block; }
-
+        #rewardVideo, #bgAudioVideo { width: 100%; height: 100%; }
         .control-btn {
-            position: absolute;
-            background: rgba(0,0,0,0.7);
-            border: 2px solid var(--cyan);
-            color: var(--cyan);
-            padding: 12px 24px;
-            font-family: 'VT323', monospace;
-            font-size: 1.6rem;
-            cursor: pointer;
-            z-index: 100;
-            transition: all 0.2s;
+            position: absolute; background: rgba(0,0,0,0.7); border: 2px solid var(--cyan);
+            color: var(--cyan); padding: 12px 24px; font-family: 'VT323', monospace; font-size: 1.6rem;
+            cursor: pointer; z-index: 100;
         }
-        .control-btn:hover { background: var(--cyan); color: #000; }
-
         #skipBtn { top: 20px; right: 20px; }
         #unmuteBtn { bottom: 20px; left: 20px; }
-
         #unmuteBtn.hidden { display: none; }
     </style>
 </head>
 <body>
-
 <div id="gameContainer">
     <div id="ui">
         <div id="lives" class="stat" style="color:var(--red)">SHIELDS: 3</div>
@@ -88,13 +69,7 @@
     <div id="videoOverlay" class="overlay" style="display:none;">
         <button id="skipBtn" class="control-btn" onclick="restart()">Skip</button>
         <button id="unmuteBtn" class="control-btn">Unmute</button>
-        <iframe 
-            id="rewardVideo" 
-            src="https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1&mute=1&enablejsapi=1&rel=0&modestbranding=1&showinfo=0" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-        </iframe>
+        <iframe id="rewardVideo" src="https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1&mute=1&enablejsapi=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -114,128 +89,172 @@
 
     let gameActive = false, timeLeft = 60, lives = 3;
     let obstacles = [], asteroids = [], lastSpawn = 0, lastAsteroid = 0;
-    let timerInterval = null;
+    let timerInterval;
 
-    // ─── Three.js Setup ──────────────────────────────────────────────────────────
+    // Scene setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000022);
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
     renderer.setSize(container.clientWidth, container.clientHeight);
     camera.position.z = 10;
 
     scene.add(new THREE.AmbientLight(0x404040, 2));
-    scene.add(new THREE.PointLight(0xffddaa, 3, 1000).position.set(50, 20, -200));
+    const sunLight = new THREE.PointLight(0xffddaa, 3, 1000);
+    sunLight.position.set(50, 20, -200);
+    scene.add(sunLight);
 
-    // Distant sun & planets
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(20,32,32), new THREE.MeshBasicMaterial({color:0xffeecc}))
-        .position.set(100,50,-400));
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(8,32,32), new THREE.MeshPhongMaterial({color:0x88aaff,emissive:0x2244aa}))
-        .position.set(-40,30,-300));
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(12,32,32), new THREE.MeshPhongMaterial({color:0xffaa88,emissive:0xaa4422}))
-        .position.set(60,-20,-500));
+    // Named references (this fixes the crash)
+    const sun = new THREE.Mesh(
+        new THREE.SphereGeometry(20, 32, 32),
+        new THREE.MeshBasicMaterial({color: 0xffeecc})
+    );
+    sun.position.set(100, 50, -400);
+    scene.add(sun);
+
+    const planet1 = new THREE.Mesh(
+        new THREE.SphereGeometry(8, 32, 32),
+        new THREE.MeshPhongMaterial({color: 0x88aaff, emissive: 0x2244aa})
+    );
+    planet1.position.set(-40, 30, -300);
+    scene.add(planet1);
+
+    const planet2 = new THREE.Mesh(
+        new THREE.SphereGeometry(12, 32, 32),
+        new THREE.MeshPhongMaterial({color: 0xffaa88, emissive: 0xaa4422})
+    );
+    planet2.position.set(60, -20, -500);
+    scene.add(planet2);
 
     // Star field
     const starsGeo = new THREE.BufferGeometry();
-    const starsPos = new Float32Array(5000 * 3);
-    for (let i = 0; i < starsPos.length; i++) starsPos[i] = (Math.random() - 0.5) * 2000;
-    starsGeo.setAttribute('position', new THREE.BufferAttribute(starsPos, 3));
-    scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0xffffff, size:0.7})));
+    const posArray = new Float32Array(5000 * 3);
+    for(let i = 0; i < posArray.length; i++) posArray[i] = (Math.random() - 0.5) * 2000;
+    starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const starField = new THREE.Points(starsGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.7}));
+    scene.add(starField);
 
-    // Player ship
+    // Ship
     const ship = new THREE.Group();
-    ship.add(new THREE.Mesh(new THREE.BoxGeometry(1,0.3,1.5), new THREE.MeshPhongMaterial({color:0x555555})));
-    const wing = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,1.2), new THREE.MeshPhongMaterial({color:0x222222}));
-    wing.rotation.x = Math.PI / 2;
-    wing.position.set(-1.2,0,0.2);
-    ship.add(wing, wing.clone().position.set(1.2,0,0.2));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x555555}));
+    const wing = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2), new THREE.MeshPhongMaterial({color: 0x222222}));
+    wing.rotation.x = Math.PI/2;
+    wing.position.set(-1.2, 0, 0.2);
+    const wingR = wing.clone();
+    wingR.position.x = 1.2;
+    ship.add(body, wing, wingR);
     scene.add(ship);
 
     function getBounds() {
-        const h = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.position.z;
-        const w = h * camera.aspect;
-        return { x: (w / 2) - 1.5, y: (h / 2) - 1.0 };
+        const vFOV = THREE.MathUtils.degToRad(camera.fov);
+        const height = 2 * Math.tan(vFOV / 2) * camera.position.z;
+        const width = height * camera.aspect;
+        return { x: (width / 2) - 1.5, y: (height / 2) - 1.0 };
     }
     let bounds = getBounds();
 
-    function spawnLaser(t) {
-        if (t - lastSpawn < 2000) return;
-        lastSpawn = t;
-        const c = [0xff00ff,0x00e0ff,0x39ff14,0xffff00][Math.floor(Math.random()*4)];
-        const l = new THREE.Mesh(new THREE.BoxGeometry(30,0.3,0.3), new THREE.MeshBasicMaterial({color:c}));
-        l.position.set(0, (Math.random()-0.5)*bounds.y*2, -100);
-        scene.add(l); obstacles.push(l);
+    function spawnLaser(now) {
+        if (now - lastSpawn < 2000) return;
+        lastSpawn = now;
+        const colors = [0xff00ff, 0x00e0ff, 0x39ff14, 0xffff00];
+        const laser = new THREE.Mesh(
+            new THREE.BoxGeometry(30, 0.3, 0.3),
+            new THREE.MeshBasicMaterial({color: colors[Math.floor(Math.random() * colors.length)]})
+        );
+        laser.position.set(0, (Math.random() - 0.5) * bounds.y * 2, -100);
+        scene.add(laser);
+        obstacles.push(laser);
     }
 
-    function spawnAsteroid(t) {
-        if (t - lastAsteroid < 8000 + Math.random()*4000) return;
-        lastAsteroid = t;
-        const a = new THREE.Mesh(
+    function spawnAsteroid(now) {
+        if (now - lastAsteroid < 8000 + Math.random()*4000) return;
+        lastAsteroid = now;
+        const asteroid = new THREE.Mesh(
             new THREE.SphereGeometry(1.2 + Math.random()*1.5, 8, 8),
-            new THREE.MeshPhongMaterial({color:0x888888, emissive:0x222222})
+            new THREE.MeshPhongMaterial({color: 0x888888, emissive: 0x222222})
         );
-        a.position.set(
-            (Math.random()-0.5)*bounds.x*1.8,
-            (Math.random()-0.5)*bounds.y*1.8,
+        asteroid.position.set(
+            (Math.random() - 0.5) * bounds.x * 1.8,
+            (Math.random() - 0.5) * bounds.y * 1.8,
             -150 - Math.random()*50
         );
-        scene.add(a); asteroids.push(a);
+        scene.add(asteroid);
+        asteroids.push(asteroid);
     }
 
-    function update(t) {
+    function update(now) {
         if (!gameActive) return;
 
-        planet1.position.z += 0.3; if (planet1.position.z > 50) planet1.position.z = -400;
-        planet2.position.z += 0.25; if (planet2.position.z > 50) planet2.position.z = -500;
-        sun.position.z += 0.15; if (sun.position.z > 100) sun.position.z = -400;
-        scene.children.find(c => c.type === 'Points').rotation.y += 0.0001;
+        planet1.position.z += 0.3;
+        planet2.position.z += 0.25;
+        sun.position.z += 0.15;
+        if (planet1.position.z > 50) planet1.position.z = -400;
+        if (planet2.position.z > 50) planet2.position.z = -500;
+        if (sun.position.z > 100) sun.position.z = -400;
 
-        obstacles.forEach((o,i) => {
+        starField.rotation.y += 0.0001;
+
+        // Lasers
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            const o = obstacles[i];
             o.position.z += 0.8;
             if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(o))) {
-                lives--; livesEl.textContent = `SHIELDS: ${lives}`;
-                scene.remove(o); obstacles.splice(i,1);
-                if (lives <= 0) endGame(false);
-            } else if (o.position.z > 12) {
-                scene.remove(o); obstacles.splice(i,1);
+                lives--;
+                livesEl.innerText = `SHIELDS: ${lives}`;
+                scene.remove(o);
+                obstacles.splice(i, 1);
+                if (lives <= 0) return endGame(false);
             }
-        });
+            if (o.position.z > 12) {
+                scene.remove(o);
+                obstacles.splice(i, 1);
+            }
+        }
 
-        asteroids.forEach((a,i) => {
+        // Asteroids
+        for (let i = asteroids.length - 1; i >= 0; i--) {
+            const a = asteroids[i];
             a.position.z += 0.6;
             if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(a))) {
-                lives--; livesEl.textContent = `SHIELDS: ${lives}`;
-                scene.remove(a); asteroids.splice(i,1);
-                if (lives <= 0) endGame(false);
-            } else if (a.position.z > 12) {
-                scene.remove(a); asteroids.splice(i,1);
+                lives--;
+                livesEl.innerText = `SHIELDS: ${lives}`;
+                scene.remove(a);
+                asteroids.splice(i, 1);
+                if (lives <= 0) return endGame(false);
             }
-        });
+            if (a.position.z > 12) {
+                scene.remove(a);
+                asteroids.splice(i, 1);
+            }
+        }
 
-        spawnLaser(t); spawnAsteroid(t);
+        spawnLaser(now);
+        spawnAsteroid(now);
         renderer.render(scene, camera);
         requestAnimationFrame(update);
     }
 
     function move(e) {
         if (!gameActive) return;
-        const r = container.getBoundingClientRect();
-        const p = e.touches ? e.touches[0] : e;
-        const x = (p.clientX - r.left) / r.width * 2 - 1;
-        const y = (p.clientY - r.top) / r.height * 2 - 1;
-        ship.position.x = x * bounds.x;
-        ship.position.y = -y * bounds.y;
+        const rect = container.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        const px = (touch.clientX - rect.left) / rect.width;
+        const py = (touch.clientY - rect.top) / rect.height;
+        ship.position.x = (px * 2 - 1) * bounds.x;
+        ship.position.y = -(py * 2 - 1) * bounds.y;
         ship.rotation.z = -ship.position.x * 0.1;
         ship.rotation.x = -ship.position.y * 0.05;
     }
 
     container.addEventListener('mousemove', move);
-    container.addEventListener('touchmove', e => { e.preventDefault(); move(e); }, {passive:false});
+    container.addEventListener('touchmove', e => { e.preventDefault(); move(e); }, {passive: false});
 
     function startGame() {
-        gameActive = true; lives = 3; timeLeft = 60;
-        livesEl.textContent = 'SHIELDS: 3';
-        timerEl.textContent = '60s';
+        gameActive = true;
+        lives = 3;
+        timeLeft = 60;
+        livesEl.innerText = `SHIELDS: 3`;
+        timerEl.innerText = `60s`;
         startOverlay.style.display = 'none';
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'none';
@@ -243,12 +262,12 @@
 
         bgAudioVideo.src = 'https://www.youtube.com/embed/o4uyUol4wBI?autoplay=1&controls=0&modestbranding=1&showinfo=0&rel=0';
 
-        obstacles = []; asteroids = [];
-        scene.children.forEach(c => { if (c.userData?.obstacle || c.userData?.asteroid) scene.remove(c); });
+        obstacles = [];
+        asteroids = [];
 
         timerInterval = setInterval(() => {
             timeLeft--;
-            timerEl.textContent = `${timeLeft}s`;
+            timerEl.innerText = `${timeLeft}s`;
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
                 gameActive = false;
@@ -263,8 +282,12 @@
         gameActive = false;
         clearInterval(timerInterval);
         bgAudioVideo.src = '';
-        if (won) winOverlay.style.display = 'flex';
-        else { alert("SHIELDS DEPLETED - GAME OVER"); restart(); }
+        if (won) {
+            winOverlay.style.display = 'flex';
+        } else {
+            alert("SHIELDS DEPLETED - GAME OVER");
+            restart();
+        }
     }
 
     function showRewardVideo() {
@@ -274,9 +297,7 @@
 
     unmuteBtn.addEventListener('click', () => {
         let src = rewardVideo.src;
-        if (src.includes('&mute=1')) {
-            rewardVideo.src = src.replace('&mute=1', '');
-        }
+        rewardVideo.src = src.replace('&mute=1', '');
         unmuteBtn.classList.add('hidden');
     });
 
