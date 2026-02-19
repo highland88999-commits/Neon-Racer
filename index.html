@@ -16,9 +16,14 @@
             --gold: #FFD700;
         }
 
-        body, html {
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
             height: 100%;
             overflow: hidden;
             background: #0d0d1a;
@@ -40,15 +45,16 @@
         h1 {
             font-family: 'VT323', monospace;
             color: var(--pink);
-            text-shadow: 0 0 12px var(--pink);
-            font-size: clamp(2.4rem, 10vw, 5rem);
-            margin: 0.6rem 0;
-            letter-spacing: 4px;
+            text-shadow: 0 0 12px var(--pink), 0 0 24px #000;
+            font-size: clamp(2.2rem, 9vw, 4.8rem);
+            margin: 0.4rem 0 1rem;
+            letter-spacing: 3px;
             z-index: 20;
         }
 
         #gameCanvas {
-            width: 94%;
+            width: 92%;
+            height: auto;
             max-width: 420px;
             aspect-ratio: 3 / 5;
             border: 4px solid var(--cyan);
@@ -61,20 +67,20 @@
 
         #scoreDisplay, #timerDisplay {
             font-family: 'VT323', monospace;
-            font-size: clamp(2.2rem, 9vw, 3.8rem);
-            text-shadow: 0 0 14px currentColor;
-            margin: 0.8rem 0;
+            font-size: clamp(1.8rem, 7vw, 3.2rem);
+            text-shadow: 0 0 12px currentColor;
+            margin: 0.6rem 0;
             z-index: 20;
         }
         #scoreDisplay { color: var(--red); }
         #timerDisplay {
             position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
+            top: 1rem;
+            right: 1rem;
             color: var(--green);
-            background: rgba(0,0,0,0.7);
-            padding: 0.6rem 1.2rem;
-            border-radius: 10px;
+            background: rgba(0,0,0,0.65);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             border: 2px solid var(--green);
         }
 
@@ -82,16 +88,16 @@
             background: linear-gradient(45deg, var(--gold), #9B59B6);
             border: none;
             color: white;
-            padding: 1.4rem 3.2rem;
-            font-size: 1.6rem;
+            padding: 1.2rem 3rem;
+            font-size: 1.5rem;
             cursor: pointer;
-            box-shadow: 0 0 20px var(--gold);
-            transition: all 0.3s;
+            box-shadow: 0 0 20px var(--gold), 0 0 40px #9B59B6;
+            transition: all 0.3s ease;
             text-transform: uppercase;
             border-radius: 12px;
             font-weight: bold;
-            margin: 2rem 0;
-            min-width: 280px;
+            margin: 1.5rem 0;
+            min-width: 260px;
             z-index: 20;
         }
         #startButton:active, #creditsButton:active { transform: scale(0.96); }
@@ -108,21 +114,24 @@
             color: var(--cyan);
             font-family: 'VT323', monospace;
             cursor: pointer;
+            padding: 1rem;
         }
 
         #creditsText {
-            font-size: clamp(2rem, 7vw, 4rem);
+            font-size: clamp(2rem, 7vw, 4.2rem);
             color: var(--pink);
             text-shadow: 0 0 25px var(--pink);
             text-align: center;
             animation: roll 24s linear forwards;
-            padding: 0 1rem;
         }
 
-        @keyframes roll { 0% { transform: translateY(120vh); } 100% { transform: translateY(-160%); } }
+        @keyframes roll {
+            0%   { transform: translateY(120vh); }
+            100% { transform: translateY(-160%); }
+        }
 
         #skipText {
-            margin-top: 3rem;
+            margin-top: 2.5rem;
             font-size: 1.6rem;
             color: var(--cyan);
             text-shadow: 0 0 18px var(--cyan);
@@ -169,28 +178,41 @@
     const finalScoreEl = document.getElementById('finalScore');
     const bgVideo = document.getElementById('bgVideo');
 
+    // === RESIZING – Critical for iframe/mobile ===
     function resize() {
-        const w = canvas.parentElement.clientWidth * 0.94;
+        const container = document.getElementById('gameContainer');
+        if (!container) return;
+
+        const w = container.clientWidth * 0.94;
         const h = w * (5 / 3);
+
         canvas.width = w;
         canvas.height = h;
         canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
-        if (renderer) {
+
+        if (renderer && camera) {
             renderer.setSize(w, h);
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
         }
     }
 
+    // Observe container size changes (best for iframes)
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(document.getElementById('gameContainer'));
+
+    // Multiple forced resizes for mobile/iframe timing bugs
+    window.addEventListener('load', resize);
+    window.addEventListener('resize', resize);
     setTimeout(resize, 0);
     setTimeout(resize, 100);
     setTimeout(resize, 300);
     setTimeout(resize, 600);
     setTimeout(resize, 1000);
+    setTimeout(resize, 2000);
 
+    // === GAME SETUP ===
     const GAME_DURATION = 60;
     let animationFrameId;
 
@@ -205,7 +227,7 @@
     };
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000); // aspect updated in resize
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setClearColor(0x0d0d1a, 0.35);
 
@@ -216,6 +238,7 @@
 
     const podracer = new THREE.Group();
 
+    // Engines
     const engineGeo = new THREE.CylinderGeometry(0.5, 0.4, 3, 32);
     const engineMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
     const leftEngine = new THREE.Mesh(engineGeo, engineMat);
@@ -224,17 +247,20 @@
     const rightEngine = leftEngine.clone();
     rightEngine.position.set(-1, 0, 1.5);
 
+    // Energy Binder
     const binderGeo = new THREE.TorusGeometry(2, 0.08, 16, 100, Math.PI);
     const binderMat = new THREE.MeshBasicMaterial({ color: 0xbf00ff });
     const energyBinder = new THREE.Mesh(binderGeo, binderMat);
     energyBinder.rotation.y = Math.PI / 2;
 
+    // Cockpit
     const cockpitGeo = new THREE.CapsuleGeometry(0.4, 0.8, 8, 16);
     const cockpitMat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
     const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
     cockpit.rotation.z = Math.PI / 2;
     cockpit.position.set(-4, 0, 0);
 
+    // Cables
     const cableGeo = new THREE.CylinderGeometry(0.03, 0.03, 6, 8);
     const cableMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
     const cableL = new THREE.Mesh(cableGeo, cableMat);
