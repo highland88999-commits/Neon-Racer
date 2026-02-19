@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Audio-Reactive Deep Space</title>
+    <title>Neon Star Racer | Audio-Reactive Survival</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         :root { --pink: #ff00ff; --cyan: #00e0ff; --red: #ff3131; }
@@ -14,13 +14,14 @@
         .stat { font-size: 2rem; text-shadow: 0 0 10px rgba(0,224,255,0.5); }
         .overlay { position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
         .btn { background: none; border: 2px solid var(--pink); color: var(--pink); padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem; cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px; }
-        #musicPlayer { position: absolute; top: -100px; visibility: hidden; }
+        #musicPlayer { position: absolute; top: -100px; left: -100px; width: 1px; height: 1px; pointer-events: none; opacity: 0; }
         canvas { display: block; width: 100%; height: 100%; }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <div id="musicPlayer"></div>
+
         <div id="ui">
             <div id="lives" class="stat" style="color:var(--red)">SHIELDS: 3</div>
             <div id="timer" class="stat" style="color:var(--cyan)">90s</div>
@@ -28,7 +29,7 @@
 
         <div id="startOverlay" class="overlay">
             <h1 style="color:var(--cyan); font-size:2.8rem; margin-bottom:10px;">SURVIVE 90 SECONDS</h1>
-            <p style="color:white; font-family:'VT323';">AUDIO-REACTIVE SYSTEM ENGAGED</p>
+            <p style="color:white; font-family:'VT323'; margin-bottom: 20px;">STARS REACT TO BEAT</p>
             <button class="btn" onclick="startGame()">ENGINE START</button>
         </div>
 
@@ -47,7 +48,9 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let player, analyzer, dataArray;
+        // --- MUSIC ENGINE ---
+        let player;
+        let isPlayerReady = false;
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
@@ -58,15 +61,14 @@
                 playerVars: { 
                     'listType': 'playlist', 
                     'list': 'PLCrg_O54Bc6kfFqK1kL25uXSGnoQk6cuV',
-                    'autoplay': 0
+                    'autoplay': 0,
+                    'controls': 0,
+                    'enablejsapi': 1
                 },
-                events: { 'onReady': setupAudioContext }
+                events: {
+                    'onReady': () => { isPlayerReady = true; console.log("System: Audio Ready"); }
+                }
             });
-        }
-
-        function setupAudioContext() {
-            // Note: Full audio reactivity usually requires direct file access. 
-            // For YouTube, we simulate pulse-matching via tempo/volume logic.
         }
 
         const canvas = document.getElementById('gameCanvas');
@@ -86,13 +88,12 @@
         renderer.setSize(container.clientWidth, container.clientHeight);
         camera.position.z = 10;
 
-        // --- STAR FIELD ---
+        // --- STAR FIELD (Reactive) ---
         const starGeo = new THREE.BufferGeometry();
         const starPos = new Float32Array(3500 * 3);
         for(let i=0; i<10500; i++) starPos[i] = (Math.random()-0.5) * 800;
         starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        const starMat = new THREE.PointsMaterial({color: 0xffffff, size: 0.5, transparent: true});
-        stars = new THREE.Points(starGeo, starMat);
+        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.5, transparent: true}));
         scene.add(stars);
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -121,8 +122,8 @@
             ship.rotation.z = -nx * 0.5;
         }
 
-        container.addEventListener('mousemove', move);
         container.addEventListener('touchmove', move, {passive: false});
+        container.addEventListener('mousemove', move);
 
         function spawnManager(now) {
             if (now - lastSpawn > 1100) {
@@ -139,18 +140,16 @@
                 scene.add(ring);
                 wormholes.push(ring);
             }
-            // Moons and Suns
             if (now - lastCelestial > 18000) {
                 lastCelestial = now;
                 const isMoon = Math.random() > 0.5;
                 const geo = new THREE.SphereGeometry(isMoon ? 12 : 20, 32, 32);
-                const mat = new THREE.MeshBasicMaterial({color: isMoon ? 0xaaaaaa : 0xffaa00});
+                const mat = new THREE.MeshBasicMaterial({color: isMoon ? 0x999999 : 0xffaa00});
                 const body = new THREE.Mesh(geo, mat);
                 body.position.set((Math.random()-0.5)*200, (Math.random()-0.5)*100, -400);
                 scene.add(body);
                 celestialBody.push(body);
             }
-            // Shooting Stars
             if (now - lastShootingStar > 4000) {
                 lastShootingStar = now;
                 const sStar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 15), new THREE.MeshBasicMaterial({color: 0xffffff}));
@@ -164,9 +163,9 @@
             if (!gameActive) return;
             let speedMult = isLightSpeed ? 5 : 1;
 
-            // Audio Reactivity (Pulse Simulation)
-            const pulse = 1 + Math.sin(now * 0.01) * 0.1;
-            stars.scale.set(pulse, pulse, pulse);
+            // Reactive Stars (Simulation)
+            const beat = 1 + Math.abs(Math.sin(now * 0.008)) * 0.2;
+            stars.scale.set(beat, beat, beat);
             stars.rotation.z += 0.001;
 
             obstacles.forEach((obs, i) => {
@@ -207,10 +206,15 @@
         function startGame() {
             gameActive = true;
             document.getElementById('startOverlay').style.display = 'none';
-            if (player && player.playVideoAt) {
-                player.playVideoAt(Math.floor(Math.random() * 20));
+
+            // FORCE MUSIC START
+            if (player && typeof player.playVideoAt === 'function') {
+                player.setShuffle(true);
+                player.setVolume(70);
+                player.playVideoAt(Math.floor(Math.random() * 15));
                 player.unMute();
             }
+
             timerInterval = setInterval(() => {
                 timeLeft--; timerEl.innerText = `${timeLeft}s`;
                 if (timeLeft <= 0) endGame(true);
@@ -221,9 +225,9 @@
         function endGame(won) {
             gameActive = false;
             clearInterval(timerInterval);
-            if (player) player.pauseVideo();
+            if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
             if (won) document.getElementById('winOverlay').style.display = 'flex';
-            else { alert("SYSTEM CRITICAL: FAILURE"); location.reload(); }
+            else { alert("SYSTEM FAILURE"); location.reload(); }
         }
 
         function showRewardVideo() {
