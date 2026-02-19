@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Perfected</title>
+    <title>Neon Star Racer | Ascended</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
@@ -15,35 +15,39 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            background: #000; 
+            background: #05050a; 
             color: #fff; 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Segoe UI', sans-serif; 
             overflow: hidden; 
             height: 100vh;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
         }
 
-        /* Scanline / CRT Effect */
-        body::after {
+        /* Scanline Overlay */
+        #gameContainer::after {
             content: " ";
             position: absolute; inset: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 3px 100%;
             z-index: 100;
             pointer-events: none;
+            border-radius: 20px;
         }
 
         #gameContainer {
             position: relative;
-            width: 100%;
+            width: 95%;
             max-width: 450px;
-            height: 90vh;
-            border: 2px solid var(--cyan);
-            box-shadow: 0 0 30px rgba(0, 224, 255, 0.3);
-            background: #0d0d1a;
+            height: 85vh;
+            margin-top: 20px;
+            border: 3px solid var(--cyan);
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0, 224, 255, 0.2);
+            background: #000;
+            overflow: hidden;
         }
 
         #ui-layer {
@@ -53,7 +57,6 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
         }
 
         .hud-text {
@@ -61,257 +64,264 @@
             text-shadow: 0 0 10px currentColor;
         }
 
-        #score { color: var(--pink); font-size: 2.5rem; }
-        #timer { color: var(--gold); font-size: 2.5rem; text-align: right; }
+        #scoreDisplay { color: var(--pink); font-size: 2rem; }
+        #timerDisplay { color: var(--gold); font-size: 2.2rem; position: absolute; top: 20px; right: 20px; }
 
-        canvas { width: 100%; height: 100%; display: block; cursor: none; }
+        canvas { width: 100%; height: 100%; display: block; }
 
-        /* Start Overlay */
         #overlay {
             position: absolute; inset: 0;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.8);
             z-index: 50;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            text-align: center;
         }
 
         .btn {
             background: transparent;
-            border: 2px solid var(--pink);
-            color: var(--pink);
+            border: 2px solid var(--cyan);
+            color: var(--cyan);
             padding: 15px 40px;
             font-family: 'VT323', monospace;
             font-size: 2rem;
             cursor: pointer;
             text-transform: uppercase;
-            box-shadow: 0 0 15px var(--pink);
-            transition: 0.2s;
+            box-shadow: 0 0 15px var(--cyan);
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 5px;
         }
-        .btn:hover { background: var(--pink); color: #000; }
+        .btn:hover { transform: scale(1.1); background: var(--cyan); color: #000; }
 
-        /* Game Shake Animation */
-        .shake { animation: shakeAnim 0.2s infinite; }
+        .shake { animation: shakeAnim 0.3s linear; }
         @keyframes shakeAnim {
-            0% { transform: translate(0,0); }
-            25% { transform: translate(2px, 2px); }
-            50% { transform: translate(-2px, -2px); }
-            75% { transform: translate(2px, -2px); }
-            100% { transform: translate(0,0); }
+            0%, 100% { transform: translate(0,0); }
+            20% { transform: translate(-5px, 5px); }
+            40% { transform: translate(5px, -5px); }
+            60% { transform: translate(-5px, -5px); }
+            80% { transform: translate(5px, 5px); }
         }
     </style>
 </head>
 <body>
 
+<h1 class="hud-text" style="color:var(--cyan); margin-top:10px; font-size: 2.5rem;">NEON STAR RACER</h1>
+
 <div id="gameContainer">
     <div id="ui-layer">
-        <div style="display: flex; justify-content: space-between;">
-            <div id="score" class="hud-text">0000</div>
-            <div id="timer" class="hud-text">60</div>
-        </div>
+        <div id="scoreDisplay" class="hud-text">SCORE: 0000</div>
+        <div id="timerDisplay" class="hud-text">60</div>
     </div>
 
     <div id="overlay">
-        <h1 class="hud-text" style="color:var(--cyan); font-size: 3rem; margin-bottom: 20px;">NEON_STAR_RACER</h1>
-        <button class="btn" onclick="startGame()">Initiate Race</button>
+        <button class="btn" onclick="startGame()">Initiate Systems</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 </div>
 
-<iframe id="bgAudio" style="display:none" src=""></iframe>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
     const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
     const container = document.getElementById('gameContainer');
-    const scoreEl = document.getElementById('score');
-    const timerEl = document.getElementById('timer');
+    const scoreEl = document.getElementById('scoreDisplay');
+    const timerEl = document.getElementById('timerDisplay');
     const overlay = document.getElementById('overlay');
 
     let gameActive = false;
     let score = 0;
     let timeLeft = 60;
-    let speed = 5;
+    let speed = 0.5;
     let obstacles = [];
-    let particles = [];
+    let podTargetX = 0;
+    let currentX = 0;
+
+    // Three.js Setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     
-    const pod = {
-        x: 0,
-        y: 0,
-        targetX: 0,
-        width: 40,
-        height: 20,
-        tilt: 0
-    };
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0x00e0ff, 2, 50);
+    pointLight.position.set(0, 5, 5);
+    scene.add(pointLight);
 
-    function resize() {
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-        pod.x = canvas.width / 2;
-        pod.y = canvas.height * 0.85;
+    // --- PERFECTED AIRCRAFT (PODRACER) ---
+    const aircraft = new THREE.Group();
+
+    // Main Cockpit (Sleek aerodynamic shape)
+    const cockpitGeo = new THREE.ConeGeometry(0.5, 2, 8);
+    const cockpitMat = new THREE.MeshPhongMaterial({ color: 0x222222, shininess: 100 });
+    const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+    cockpit.rotation.x = Math.PI / 2;
+    aircraft.add(cockpit);
+
+    // Engines
+    const engineGeo = new THREE.CylinderGeometry(0.3, 0.4, 2.5, 16);
+    const engineMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
+    
+    const engineL = new THREE.Mesh(engineGeo, engineMat);
+    engineL.position.set(-1.8, -0.5, 0.5);
+    engineL.rotation.x = Math.PI / 2;
+    
+    const engineR = engineL.clone();
+    engineR.position.x = 1.8;
+    
+    aircraft.add(engineL, engineR);
+
+    // Neon Energy Links (The "Plasma" between engines and cockpit)
+    const linkGeo = new THREE.BoxGeometry(3.6, 0.05, 0.05);
+    const linkMat = new THREE.MeshBasicMaterial({ color: 0x00e0ff });
+    const link = new THREE.Mesh(linkGeo, linkMat);
+    link.position.y = -0.5;
+    aircraft.add(link);
+
+    // Engine Exhaust Glow
+    const glowGeo = new THREE.SphereGeometry(0.35, 16, 16);
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+    const glowL = new THREE.Mesh(glowGeo, glowMat);
+    glowL.position.set(-1.8, -0.5, 2);
+    const glowR = glowL.clone();
+    glowR.position.x = 1.8;
+    aircraft.add(glowL, glowR);
+
+    aircraft.position.y = -6; // Position at bottom of screen
+    aircraft.rotation.x = -0.2; // Slight tilt up
+    scene.add(aircraft);
+
+    camera.position.z = 12;
+    camera.position.y = -2;
+
+    // --- STARFIELD BACKGROUND ---
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 1000;
+    const posArray = new Float32Array(starCount * 3);
+    for(let i=0; i < starCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 100;
     }
-    window.addEventListener('resize', resize);
-    resize();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const starMat = new THREE.PointsMaterial({ size: 0.05, color: 0xffffff });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
 
-    // Input Handling
-    const handleInput = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        pod.targetX = clientX - rect.left;
-    };
-    canvas.addEventListener('mousemove', handleInput);
-    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
+    // --- GAME LOGIC ---
+    function spawnObstacle() {
+        const isGate = Math.random() > 0.4;
+        let mesh;
 
-    function createObstacle() {
-        const size = 20 + Math.random() * 30;
-        return {
-            x: Math.random() * (canvas.width - size),
-            y: -50,
-            width: size,
-            height: size,
-            color: Math.random() > 0.5 ? '#ff00ff' : '#00e0ff',
-            glow: 15 + Math.random() * 20
-        };
-    }
-
-    function spawnParticle(x, y, color) {
-        for(let i=0; i<5; i++) {
-            particles.push({
-                x, y,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                life: 1.0,
-                color
-            });
+        if(isGate) {
+            const group = new THREE.Group();
+            const gateMat = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+            const part = new THREE.BoxGeometry(8, 0.5, 0.5);
+            const left = new THREE.Mesh(part, gateMat);
+            const right = new THREE.Mesh(part, gateMat);
+            left.position.x = -6.5;
+            right.position.x = 6.5;
+            group.add(left, right);
+            mesh = group;
+            mesh.userData = { type: 'gate', gap: 5 };
+        } else {
+            const rockGeo = new THREE.IcosahedronGeometry(0.8, 0);
+            const rockMat = new THREE.MeshStandardMaterial({ color: 0x00e0ff, flatShading: true });
+            mesh = new THREE.Mesh(rockGeo, rockMat);
+            mesh.userData = { type: 'rock' };
         }
+
+        mesh.position.set((Math.random() - 0.5) * 15, 0, -50);
+        scene.add(mesh);
+        obstacles.push(mesh);
     }
 
     function update() {
         if (!gameActive) return;
 
-        // Pod Physics (Tightened response)
-        const dx = pod.targetX - pod.x;
-        pod.x += dx * 0.15;
-        pod.tilt = dx * 0.05;
+        // Smooth movement
+        currentX += (podTargetX - currentX) * 0.1;
+        aircraft.position.x = currentX;
+        aircraft.rotation.y = -(podTargetX - currentX) * 0.5; // Bank into turn
+        aircraft.rotation.z = -(podTargetX - currentX) * 0.8;
 
-        // Obstacle Logic
-        if (Math.random() < 0.05 + (speed * 0.005)) {
-            obstacles.push(createObstacle());
+        // Move stars for speed feel
+        stars.position.z += speed;
+        if(stars.position.z > 50) stars.position.z = 0;
+
+        // Handle Obstacles
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            const obs = obstacles[i];
+            obs.position.z += speed;
+
+            // Collision Detection
+            const distZ = Math.abs(obs.position.z - aircraft.position.z);
+            if (distZ < 0.5) {
+                const distX = Math.abs(obs.position.x - aircraft.position.x);
+                if (obs.userData.type === 'rock' && distX < 1.5) endGame();
+                if (obs.userData.type === 'gate' && distX > 2.2) endGame();
+            }
+
+            if (obs.position.z > 15) {
+                scene.remove(obs);
+                obstacles.splice(i, 1);
+                score += 100;
+                scoreEl.innerText = `SCORE: ${score.toString().padStart(4, '0')}`;
+                speed += 0.005;
+            }
         }
 
-        obstacles.forEach((obs, index) => {
-            obs.y += speed;
-            
-            // Collision detection
-            if (obs.y + obs.height > pod.y && 
-                obs.y < pod.y + pod.height &&
-                obs.x + obs.width > pod.x - pod.width/2 &&
-                obs.x < pod.x + pod.width/2) {
-                gameOver();
-            }
+        if (Math.random() < 0.05) spawnObstacle();
 
-            if (obs.y > canvas.height) {
-                obstacles.splice(index, 1);
-                score += 10;
-                scoreEl.innerText = score.toString().padStart(4, '0');
-                speed += 0.05;
-            }
-        });
-
-        // Particle Logic
-        particles.forEach((p, i) => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.02;
-            if (p.life <= 0) particles.splice(i, 1);
-        });
-
-        draw();
+        renderer.render(scene, camera);
         requestAnimationFrame(update);
     }
 
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Input
+    container.addEventListener('mousemove', (e) => {
+        const rect = container.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        podTargetX = x * 10;
+    });
 
-        // Draw Road/Grid Lines
-        ctx.strokeStyle = 'rgba(0, 224, 255, 0.1)';
-        ctx.lineWidth = 2;
-        for(let i=0; i<canvas.width; i+=40) {
-            ctx.beginPath();
-            ctx.moveTo(i, 0);
-            ctx.lineTo(i, canvas.height);
-            ctx.stroke();
-        }
-
-        // Draw Particles
-        particles.forEach(p => {
-            ctx.fillStyle = `rgba(255, 255, 255, ${p.life})`;
-            ctx.fillRect(p.x, p.y, 2, 2);
-        });
-
-        // Draw Obstacles
-        obstacles.forEach(obs => {
-            ctx.shadowBlur = obs.glow;
-            ctx.shadowColor = obs.color;
-            ctx.fillStyle = obs.color;
-            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-            ctx.shadowBlur = 0;
-        });
-
-        // Draw Pod (The Racer)
-        ctx.save();
-        ctx.translate(pod.x, pod.y);
-        ctx.rotate(pod.tilt);
-        
-        // Engine Glow
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = var(--cyan);
-        ctx.fillStyle = var(--cyan);
-        ctx.beginPath();
-        ctx.moveTo(-pod.width/2, 0);
-        ctx.lineTo(pod.width/2, 0);
-        ctx.lineTo(0, -pod.height);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-    }
+    container.addEventListener('touchmove', (e) => {
+        const rect = container.getBoundingClientRect();
+        const x = ((e.touches[0].clientX - rect.left) / rect.width) * 2 - 1;
+        podTargetX = x * 10;
+    });
 
     function startGame() {
-        gameActive = true;
         score = 0;
         timeLeft = 60;
-        speed = 6;
-        obstacles = [];
+        speed = 0.6;
+        gameActive = true;
         overlay.style.display = 'none';
         
-        const timerInterval = setInterval(() => {
+        const timer = setInterval(() => {
             timeLeft--;
             timerEl.innerText = timeLeft;
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                winGame();
-            }
+            if(timeLeft <= 0 || !gameActive) clearInterval(timer);
+            if(timeLeft === 0) alert("CHAMPION OF THE GRID! FINAL SCORE: " + score);
         }, 1000);
 
         update();
     }
 
-    function gameOver() {
+    function endGame() {
         gameActive = false;
         container.classList.add('shake');
-        setTimeout(() => container.classList.remove('shake'), 500);
-        alert("SYSTEM_FAILURE: POD_CRASHED\nFINAL_SCORE: " + score);
-        location.reload();
+        setTimeout(() => {
+            alert("SYSTEM CRITICAL: POD DESTROYED\nFINAL SCORE: " + score);
+            location.reload();
+        }, 500);
     }
 
-    function winGame() {
-        gameActive = false;
-        alert("MISSION_COMPLETE: GRID_SURVIVED\nFINAL_SCORE: " + score);
-        location.reload();
-    }
+    window.addEventListener('resize', () => {
+        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    });
+    
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 </script>
 </body>
 </html>
