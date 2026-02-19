@@ -40,7 +40,6 @@
         #winOverlay p { color: #fff; font-size: 1.8rem; margin-bottom: 30px; }
 
         #videoOverlay { background: #000; }
-        #rewardVideo, #bgAudioVideo { width: 100%; height: 100%; }
         #skipBtn {
             position: absolute; top: 20px; right: 20px;
             background: rgba(0,0,0,0.6); border: 2px solid var(--cyan);
@@ -49,8 +48,9 @@
         }
 
         #bgAudioContainer {
-            position: absolute; inset: 0; pointer-events: none; z-index: 1; opacity: 0.08; /* subtle visual if desired; set to 0 for audio-only */
+            position: absolute; inset: 0; pointer-events: none; z-index: 1; opacity: 0; /* hidden for audio-only */
         }
+        #bgPlayer, #rewardPlayer { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
@@ -61,15 +61,9 @@
         <div id="timer" class="stat" style="color:var(--cyan)">60s</div>
     </div>
 
-    <!-- Background cinematic audio/visual (hidden/low opacity) -->
+    <!-- Background audio container (audio only) -->
     <div id="bgAudioContainer">
-        <iframe 
-            id="bgAudioVideo" 
-            src="" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-        </iframe>
+        <div id="bgPlayer"></div>
     </div>
 
     <!-- Start overlay -->
@@ -88,18 +82,13 @@
     <!-- Post-credit reward video -->
     <div id="videoOverlay" class="overlay" style="display:none;">
         <button id="skipBtn" onclick="restart()">Skip</button>
-        <iframe 
-            id="rewardVideo" 
-            src="https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1&enablejsapi=1" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-        </iframe>
+        <div id="rewardPlayer"></div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 </div>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
     const canvas = document.getElementById('gameCanvas');
@@ -109,61 +98,92 @@
     const startOverlay = document.getElementById('startOverlay');
     const winOverlay = document.getElementById('winOverlay');
     const videoOverlay = document.getElementById('videoOverlay');
-    const bgAudioVideo = document.getElementById('bgAudioVideo');
 
     let gameActive = false, timeLeft = 60, lives = 3, obstacles = [], asteroids = [], lastSpawn = 0, lastAsteroid = 0;
     let timerInterval = null;
-    
-    // Three.js setup
+
+    // YouTube Players
+    let bgPlayer = null;
+    let rewardPlayer = null;
+
+    // Wait for YouTube API to load
+    function onYouTubeIframeAPIReady() {
+        bgPlayer = new YT.Player('bgPlayer', {
+            height: '100%',
+            width: '100%',
+            videoId: 'o4uyUol4wBI',
+            playerVars: {
+                'autoplay': 0,
+                'controls': 0,
+                'modestbranding': 1,
+                'rel': 0,
+                'showinfo': 0,
+                'loop': 0
+            },
+            events: {
+                'onReady': function(event) {
+                    // Ready, but don't play yet
+                }
+            }
+        });
+
+        rewardPlayer = new YT.Player('rewardPlayer', {
+            height: '100%',
+            width: '100%',
+            videoId: 'B7FMh3YtK_w',
+            playerVars: {
+                'autoplay': 0,
+                'controls': 1,
+                'modestbranding': 1,
+                'rel': 0
+            },
+            events: {
+                'onReady': function(event) {
+                    // Ready
+                },
+                'onStateChange': function(event) {
+                    if (event.data === YT.PlayerState.ENDED) {
+                        restart();
+                    }
+                }
+            }
+        });
+    }
+
+    // Three.js setup (unchanged from previous - stars, planets, sun, ship, lasers, asteroids)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000022); // deep space
+    scene.background = new THREE.Color(0x000022);
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     camera.position.z = 10;
 
-    // Lights
     scene.add(new THREE.AmbientLight(0x404040, 2));
     const sunLight = new THREE.PointLight(0xffddaa, 3, 1000);
     sunLight.position.set(50, 20, -200);
     scene.add(sunLight);
 
-    // Sun (distant glowing body)
-    const sun = new THREE.Mesh(
-        new THREE.SphereGeometry(20, 32, 32),
-        new THREE.MeshBasicMaterial({ color: 0xffeecc })
-    );
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(20, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffeecc }));
     sun.position.set(100, 50, -400);
     scene.add(sun);
 
-    // Planets (simple passing orbs)
-    const planet1 = new THREE.Mesh(
-        new THREE.SphereGeometry(8, 32, 32),
-        new THREE.MeshPhongMaterial({ color: 0x88aaff, emissive: 0x2244aa })
-    );
+    const planet1 = new THREE.Mesh(new THREE.SphereGeometry(8, 32, 32), new THREE.MeshPhongMaterial({ color: 0x88aaff, emissive: 0x2244aa }));
     planet1.position.set(-40, 30, -300);
     scene.add(planet1);
 
-    const planet2 = new THREE.Mesh(
-        new THREE.SphereGeometry(12, 32, 32),
-        new THREE.MeshPhongMaterial({ color: 0xffaa88, emissive: 0xaa4422 })
-    );
+    const planet2 = new THREE.Mesh(new THREE.SphereGeometry(12, 32, 32), new THREE.MeshPhongMaterial({ color: 0xffaa88, emissive: 0xaa4422 }));
     planet2.position.set(60, -20, -500);
     scene.add(planet2);
 
-    // Star field (particles)
     const starsGeometry = new THREE.BufferGeometry();
     const starsCount = 5000;
     const posArray = new Float32Array(starsCount * 3);
-    for(let i = 0; i < starsCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 2000;
-    }
+    for(let i = 0; i < starsCount * 3; i++) posArray[i] = (Math.random() - 0.5) * 2000;
     starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
     const starField = new THREE.Points(starsGeometry, starsMaterial);
     scene.add(starField);
 
-    // Ship
     const ship = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x555555}));
     const wingL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2), new THREE.MeshPhongMaterial({color: 0x222222}));
@@ -183,13 +203,9 @@
     function spawnLaser(now) {
         if (now - lastSpawn < 2000) return;
         lastSpawn = now;
-
         const colors = [0xff00ff, 0x00e0ff, 0x39ff14, 0xffff00];
         const color = colors[Math.floor(Math.random() * colors.length)];
-        const laser = new THREE.Mesh(
-            new THREE.BoxGeometry(30, 0.3, 0.3), 
-            new THREE.MeshBasicMaterial({color: color})
-        );
+        const laser = new THREE.Mesh(new THREE.BoxGeometry(30, 0.3, 0.3), new THREE.MeshBasicMaterial({color}));
         laser.position.set(0, (Math.random() - 0.5) * bounds.y * 2, -100);
         scene.add(laser);
         obstacles.push(laser);
@@ -198,7 +214,6 @@
     function spawnAsteroid(now) {
         if (now - lastAsteroid < 8000 + Math.random()*4000) return;
         lastAsteroid = now;
-
         const asteroid = new THREE.Mesh(
             new THREE.SphereGeometry(1.2 + Math.random()*1.5, 8, 8),
             new THREE.MeshPhongMaterial({ color: 0x888888, emissive: 0x222222 })
@@ -215,58 +230,39 @@
     function update(now) {
         if (!gameActive) return;
 
-        // Move background elements slowly
-        planet1.position.z += 0.3;
-        planet2.position.z += 0.25;
-        sun.position.z += 0.15;
+        planet1.position.z += 0.3; planet2.position.z += 0.25; sun.position.z += 0.15;
         if (planet1.position.z > 50) planet1.position.z = -400;
         if (planet2.position.z > 50) planet2.position.z = -500;
         if (sun.position.z > 100) sun.position.z = -400;
-
-        // Star field subtle scroll
         starField.rotation.y += 0.0001;
 
+        // Lasers and asteroids collision/update logic (same as before)
         for (let i = obstacles.length - 1; i >= 0; i--) {
             const o = obstacles[i];
             o.position.z += 0.8;
-
             const shipBox = new THREE.Box3().setFromObject(ship);
             const objBox = new THREE.Box3().setFromObject(o);
             if (shipBox.intersectsBox(objBox)) {
-                lives--;
-                livesEl.innerText = `SHIELDS: ${lives}`;
-                scene.remove(o);
-                obstacles.splice(i, 1);
+                lives--; livesEl.innerText = `SHIELDS: ${lives}`;
+                scene.remove(o); obstacles.splice(i, 1);
                 if (lives <= 0) endGame(false);
                 continue;
             }
-
-            if (o.position.z > 12) {
-                scene.remove(o);
-                obstacles.splice(i, 1);
-            }
+            if (o.position.z > 12) { scene.remove(o); obstacles.splice(i, 1); }
         }
 
-        // Asteroids update
         for (let i = asteroids.length - 1; i >= 0; i--) {
             const a = asteroids[i];
-            a.position.z += 0.6; // slower than lasers
-
+            a.position.z += 0.6;
             const shipBox = new THREE.Box3().setFromObject(ship);
             const astBox = new THREE.Box3().setFromObject(a);
             if (shipBox.intersectsBox(astBox)) {
-                lives--;
-                livesEl.innerText = `SHIELDS: ${lives}`;
-                scene.remove(a);
-                asteroids.splice(i, 1);
+                lives--; livesEl.innerText = `SHIELDS: ${lives}`;
+                scene.remove(a); asteroids.splice(i, 1);
                 if (lives <= 0) endGame(false);
                 continue;
             }
-
-            if (a.position.z > 12) {
-                scene.remove(a);
-                asteroids.splice(i, 1);
-            }
+            if (a.position.z > 12) { scene.remove(a); asteroids.splice(i, 1); }
         }
 
         spawnLaser(now);
@@ -279,13 +275,10 @@
         if (!gameActive) return;
         const rect = container.getBoundingClientRect();
         const touch = e.touches ? e.touches[0] : e;
-        
         const px = (touch.clientX - rect.left) / rect.width;
         const py = (touch.clientY - rect.top) / rect.height;
-
         ship.position.x = (px * 2 - 1) * bounds.x;
         ship.position.y = -(py * 2 - 1) * bounds.y;
-
         ship.rotation.z = -ship.position.x * 0.1;
         ship.rotation.x = -ship.position.y * 0.05;
     };
@@ -301,15 +294,12 @@
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'none';
 
-        // Start background cinematic audio
-        bgAudioVideo.src = 'https://www.youtube.com/embed/o4uyUol4wBI?autoplay=1&loop=0&controls=0&modestbranding=1&showinfo=0&rel=0';
+        if (bgPlayer && bgPlayer.playVideo) bgPlayer.playVideo();
 
-        obstacles.forEach(o => scene.remove(o));
-        asteroids.forEach(a => scene.remove(a));
         obstacles = []; asteroids = [];
 
         timerInterval = setInterval(() => {
-            if (!gameActive) { clearInterval(timerInterval); return; }
+            if (!gameActive) return;
             timeLeft--;
             timerEl.innerText = `${timeLeft}s`;
             if (timeLeft <= 0) {
@@ -325,7 +315,8 @@
     function endGame(won) {
         gameActive = false;
         clearInterval(timerInterval);
-        bgAudioVideo.src = ''; // pause/stop background
+
+        if (bgPlayer && bgPlayer.pauseVideo) bgPlayer.pauseVideo();
 
         if (won) {
             winOverlay.style.display = 'flex';
@@ -339,19 +330,16 @@
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'flex';
 
-        // YouTube end detection
-        window.addEventListener('message', function onYTMessage(event) {
-            if (event.origin.includes('youtube.com') && event.data.event === 'onStateChange' && event.data.info === 0) {
-                restart();
-                window.removeEventListener('message', onYTMessage);
-            }
-        });
+        if (rewardPlayer && rewardPlayer.playVideo) rewardPlayer.playVideo();
     }
 
     function restart() {
         gameActive = false;
         clearInterval(timerInterval);
-        bgAudioVideo.src = '';
+
+        if (bgPlayer) bgPlayer.pauseVideo();
+        if (rewardPlayer) rewardPlayer.pauseVideo();
+
         location.reload();
     }
 
