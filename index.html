@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Audio-Reactive Precision</title>
+    <title>Neon Star Racer | Deep Space Survival</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         :root { --pink: #ff00ff; --cyan: #00e0ff; --red: #ff3131; }
@@ -14,7 +14,7 @@
         .stat { font-size: 2rem; text-shadow: 0 0 10px rgba(0,224,255,0.5); }
         .overlay { position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
         .btn { background: none; border: 2px solid var(--pink); color: var(--pink); padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem; cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px; }
-        #musicPlayer { position: absolute; top: -100px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        #musicPlayer { position: absolute; top: -100px; left: -100px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
         canvas { display: block; width: 100%; height: 100%; }
     </style>
 </head>
@@ -29,7 +29,7 @@
 
         <div id="startOverlay" class="overlay">
             <h1 style="color:var(--cyan); font-size:2.8rem; margin-bottom:10px;">SURVIVE 90 SECONDS</h1>
-            <p style="color:white; font-family:'VT323'; margin-bottom: 20px;">ENGINE START UNLOCKS AUDIO</p>
+            <p style="color:white; font-family:'VT323';">ENGINE START UNLOCKS AUDIO</p>
             <button class="btn" onclick="startGame()">ENGINE START</button>
         </div>
 
@@ -48,7 +48,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- YOUTUBE API SETUP ---
+        // --- YOUTUBE API ---
         let player;
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -60,14 +60,12 @@
                 playerVars: { 
                     'listType': 'playlist', 
                     'list': 'PLCrg_O54Bc6kfFqK1kL25uXSGnoQk6cuV',
-                    'autoplay': 0,
-                    'controls': 0,
-                    'enablejsapi': 1,
-                    'origin': window.location.origin
+                    'autoplay': 0, 'controls': 0, 'enablejsapi': 1
                 }
             });
         }
 
+        // --- GAME ENGINE ---
         const canvas = document.getElementById('gameCanvas');
         const container = document.getElementById('gameContainer');
         const timerEl = document.getElementById('timer');
@@ -85,7 +83,7 @@
         renderer.setSize(container.clientWidth, container.clientHeight);
         camera.position.z = 10;
 
-        // --- AUDIO-REACTIVE STARFIELD ---
+        // --- STAR FIELD ---
         const starGeo = new THREE.BufferGeometry();
         const starPos = new Float32Array(4000 * 3);
         for(let i=0; i<12000; i++) starPos[i] = (Math.random()-0.5) * 800;
@@ -161,9 +159,9 @@
             if (!gameActive) return;
             let speedMult = isLightSpeed ? 5 : 1;
 
-            // AUDIO REACTIVITY (PULSE SIMULATION)
-            const beat = 1 + Math.abs(Math.sin(now * 0.01)) * 0.15;
-            stars.scale.set(beat, beat, beat);
+            // Audio Reactivity Simulation
+            const pulse = 1 + Math.abs(Math.sin(now * 0.01)) * 0.15;
+            stars.scale.set(pulse, pulse, pulse);
             stars.rotation.z += 0.001;
 
             obstacles.forEach((obs, i) => {
@@ -202,19 +200,17 @@
         }
 
         function startGame() {
-            // STEP 1: UI CHANGE
             document.getElementById('startOverlay').style.display = 'none';
             gameActive = true;
 
-            // STEP 2: HARDWARE TRIGGER FOR AUDIO
+            // FORCE MUSIC TRIGGER ON CLICK
             if (player && player.playVideoAt) {
                 player.unMute();
                 player.setShuffle(true);
+                player.setVolume(80);
                 player.playVideoAt(Math.floor(Math.random() * 20));
-                player.setVolume(70);
             }
 
-            // STEP 3: START LOGIC
             timerInterval = setInterval(() => {
                 timeLeft--; timerEl.innerText = `${timeLeft}s`;
                 if (timeLeft <= 0) endGame(true);
@@ -225,12 +221,9 @@
         function endGame(won) {
             gameActive = false;
             clearInterval(timerInterval);
-            
-            // STOP AUDIO
             if (player && player.pauseVideo) player.pauseVideo();
-
             if (won) document.getElementById('winOverlay').style.display = 'flex';
-            else { alert("SYSTEM FAILURE: SHIELDS DEPLETED"); location.reload(); }
+            else { alert("SHIELDS DEPLETED"); location.reload(); }
         }
 
         function showRewardVideo() {
@@ -238,6 +231,13 @@
             document.getElementById('videoOverlay').style.display = 'flex';
             document.getElementById('rewardVideo').src = "https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1";
         }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            bounds = getBounds();
+        });
     </script>
 </body>
 </html>
