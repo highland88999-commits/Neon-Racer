@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Absolute Lock</title>
+    <title>Neon Star Racer | Precision Survival</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         :root { --pink: #ff00ff; --cyan: #00e0ff; --red: #ff3131; }
@@ -21,15 +21,32 @@
 
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 20; padding: 20px; display: flex; justify-content: space-between; font-family: 'VT323', monospace; }
         .stat { font-size: 2rem; text-shadow: 0 0 10px rgba(0,224,255,0.5); }
-        .overlay { position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
+        
+        .overlay { 
+            position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; 
+            padding: 20px;
+        }
         
         .btn {
             background: none; border: 2px solid var(--pink); color: var(--pink);
             padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem;
             cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px;
+            transition: all 0.2s;
         }
+        .btn:hover { background: var(--pink); color: #000; box-shadow: 0 0 25px var(--pink); }
 
-        #rewardVideo { width: 100%; height: 100%; border: none; }
+        #winOverlay h1 { color: var(--cyan); font-size: 3.2rem; margin-bottom: 15px; text-shadow: 0 0 20px var(--cyan); }
+        #winOverlay p { color: #fff; font-size: 1.8rem; margin-bottom: 30px; }
+
+        #videoOverlay { background: #000; }
+        #rewardVideo { width: 100%; height: 100%; }
+        #skipBtn {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(0,0,0,0.6); border: 2px solid var(--cyan);
+            color: var(--cyan); padding: 10px 20px; font-size: 1.5rem;
+            z-index: 100; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -40,20 +57,29 @@
         <div id="timer" class="stat" style="color:var(--cyan)">60s</div>
     </div>
 
+    <!-- Start overlay -->
     <div id="startOverlay" class="overlay">
-        <h1 style="color:var(--cyan); font-family:'VT323'; font-size:3rem; margin-bottom:20px;">SURVIVE 60 SECONDS</h1>
+        <h1 style="color:var(--cyan); font-size:3rem; margin-bottom:20px;">SURVIVE 60 SECONDS</h1>
         <button class="btn" onclick="startGame()">ENGINE START</button>
     </div>
 
+    <!-- Win overlay -->
     <div id="winOverlay" class="overlay" style="display:none;">
-        <h1 style="color:var(--cyan); font-family:'VT323'; font-size:3rem;">MISSION COMPLETE</h1>
-        <p style="color:white; font-family:'VT323'; font-size:1.5rem;">You survived the grid.</p>
-        <button class="btn" onclick="showRewardVideo()">CONTINUE</button>
+        <h1>You survived Tatooine Airspace</h1>
+        <p style="color:var(--pink); font-size:2.2rem;">MISSION ACCOMPLISHED</p>
+        <button class="btn" onclick="showRewardVideo()">Continue</button>
     </div>
 
-    <div id="videoOverlay" class="overlay" style="display:none; background:#000; padding:0;">
-        <button style="position:absolute; top:10px; right:10px; z-index:100; color:white; background:none; border:1px solid white; padding:5px;" onclick="restart()">SKIP</button>
-        <iframe id="rewardVideo" src="" allow="autoplay"></iframe>
+    <!-- Video reward overlay (now unmuted) -->
+    <div id="videoOverlay" class="overlay" style="display:none;">
+        <button id="skipBtn" onclick="restart()">Skip</button>
+        <iframe 
+            id="rewardVideo" 
+            src="https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1&enablejsapi=1" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+        </iframe>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -71,8 +97,8 @@
 
     let gameActive = false, timeLeft = 60, lives = 3, obstacles = [], lastSpawn = 0;
     let timerInterval = null;
-
-    // Three.js
+    
+    // Three.js setup (unchanged)
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -88,27 +114,24 @@
     scene.add(ship);
     scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-    // Locked Bounds Calculation
     function getBounds() {
         const vFOV = THREE.MathUtils.degToRad(camera.fov);
         const height = 2 * Math.tan(vFOV / 2) * camera.position.z;
         const width = height * camera.aspect;
-        // Padding ensures the edges of the wings stay inside the box
-        return { x: (width / 2) - 1.4, y: (height / 2) - 0.6 };
+        return { x: (width / 2) - 1.5, y: (height / 2) - 1.0 };
     }
     let bounds = getBounds();
 
     function spawnLaser(now) {
-        if (now - lastSpawn < 1800) return; // Rhythm: roughly one every 1.8 seconds
+        if (now - lastSpawn < 2000) return;
         lastSpawn = now;
 
         const colors = [0xff00ff, 0x00e0ff, 0x39ff14, 0xffff00];
         const color = colors[Math.floor(Math.random() * colors.length)];
         const laser = new THREE.Mesh(
-            new THREE.BoxGeometry(40, 0.3, 0.3), 
+            new THREE.BoxGeometry(30, 0.3, 0.3), 
             new THREE.MeshBasicMaterial({color: color})
         );
-        // Random Y position within the strict bounds
         laser.position.set(0, (Math.random() - 0.5) * bounds.y * 2, -100);
         scene.add(laser);
         obstacles.push(laser);
@@ -119,11 +142,10 @@
 
         for (let i = obstacles.length - 1; i >= 0; i--) {
             const o = obstacles[i];
-            o.position.z += 0.85; // Speed
+            o.position.z += 0.8;
 
             const shipBox = new THREE.Box3().setFromObject(ship);
             const laserBox = new THREE.Box3().setFromObject(o);
-            
             if (shipBox.intersectsBox(laserBox)) {
                 lives--;
                 livesEl.innerText = `SHIELDS: ${lives}`;
@@ -144,21 +166,17 @@
         requestAnimationFrame(update);
     }
 
-    // THE ABSOLUTE LOCK
     const move = (e) => {
         if (!gameActive) return;
         const rect = container.getBoundingClientRect();
         const touch = e.touches ? e.touches[0] : e;
         
-        // 0 to 1 mapping of finger on the screen
-        const px = THREE.MathUtils.clamp((touch.clientX - rect.left) / rect.width, 0, 1);
-        const py = THREE.MathUtils.clamp((touch.clientY - rect.top) / rect.height, 0, 1);
+        const px = (touch.clientX - rect.left) / rect.width;
+        const py = (touch.clientY - rect.top) / rect.height;
 
-        // Map directly to 3D bounds
         ship.position.x = (px * 2 - 1) * bounds.x;
         ship.position.y = -(py * 2 - 1) * bounds.y;
 
-        // Visual tilt
         ship.rotation.z = -ship.position.x * 0.1;
         ship.rotation.x = -ship.position.y * 0.05;
     };
@@ -168,31 +186,41 @@
 
     function startGame() {
         gameActive = true; lives = 3; timeLeft = 60;
+        livesEl.innerText = `SHIELDS: 3`;
+        timerEl.innerText = `60s`;
         startOverlay.style.display = 'none';
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'none';
-        livesEl.innerText = `SHIELDS: 3`;
-        timerEl.innerText = `60s`;
-        
         obstacles.forEach(o => scene.remove(o));
         obstacles = [];
-        
+
         timerInterval = setInterval(() => {
             if (!gameActive) { clearInterval(timerInterval); return; }
             timeLeft--;
             timerEl.innerText = `${timeLeft}s`;
             if (timeLeft <= 0) {
+                clearInterval(timerInterval);
                 gameActive = false;
                 winOverlay.style.display = 'flex';
             }
         }, 1000);
+
         requestAnimationFrame(update);
     }
 
     function showRewardVideo() {
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'flex';
-        document.getElementById('rewardVideo').src = "https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1";
+
+        const iframe = document.getElementById('rewardVideo');
+        // YouTube IFrame API listener for end detection
+        window.addEventListener('message', (event) => {
+            if (event.origin.includes('youtube.com') && event.data.event === 'onStateChange') {
+                if (event.data.info === 0) { // YT.PlayerState.ENDED
+                    restart();
+                }
+            }
+        });
     }
 
     function restart() {
