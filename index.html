@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Precision Survival 90</title>
+    <title>Neon Star Racer | 90s Precision</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         :root { --pink: #ff00ff; --cyan: #00e0ff; --red: #ff3131; }
@@ -13,10 +13,7 @@
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 20; padding: 20px; display: flex; justify-content: space-between; font-family: 'VT323', monospace; }
         .stat { font-size: 2rem; text-shadow: 0 0 10px rgba(0,224,255,0.5); }
         .overlay { position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
-        .btn { background: none; border: 2px solid var(--pink); color: var(--pink); padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem; cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px; transition: all 0.2s; }
-        .btn:hover { background: var(--pink); color: #000; box-shadow: 0 0 25px var(--pink); }
-        
-        /* Hidden Music Player */
+        .btn { background: none; border: 2px solid var(--pink); color: var(--pink); padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem; cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px; }
         #musicPlayer { position: absolute; top: -100px; left: -100px; width: 1px; height: 1px; pointer-events: none; }
         canvas { display: block; width: 100%; height: 100%; }
     </style>
@@ -24,7 +21,6 @@
 <body>
     <div id="gameContainer">
         <div id="musicPlayer"></div>
-
         <div id="ui">
             <div id="lives" class="stat" style="color:var(--red)">SHIELDS: 3</div>
             <div id="timer" class="stat" style="color:var(--cyan)">90s</div>
@@ -36,9 +32,9 @@
         </div>
 
         <div id="winOverlay" class="overlay" style="display:none;">
-            <h1>MISSION ACCOMPLISHED</h1>
-            <p style="color:var(--pink); font-size:2.2rem; font-family:'VT323';">Tatooine Airspace Clear</p>
-            <button class="btn" onclick="location.reload()">REPLAY</button>
+            <h1 style="color:var(--cyan);">MISSION COMPLETE</h1>
+            <p style="color:var(--pink); font-family:'VT323'; font-size:1.8rem;">AIRSPACE CLEAR</p>
+            <button class="btn" onclick="location.reload()">RESTART</button>
         </div>
 
         <canvas id="gameCanvas"></canvas>
@@ -70,12 +66,12 @@
         const livesEl = document.getElementById('lives');
         
         let gameActive = false, timeLeft = 90, lives = 3;
-        let obstacles = [], asteroids = [], stars;
-        let lastSpawn = 0, lastAsteroid = 0;
+        let obstacles = [], stars;
+        let lastSpawn = 0;
         let timerInterval;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000011);
+        scene.background = new THREE.Color(0x000008);
         const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
         renderer.setSize(container.clientWidth, container.clientHeight);
@@ -83,19 +79,19 @@
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // Ship
+        // Player Ship
         const ship = new THREE.Group();
-        const shipMat = new THREE.MeshPhongMaterial({color: 0x888888, shininess: 100});
-        ship.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 1.5), shipMat));
-        ship.add(new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.6), shipMat));
+        const shipMat = new THREE.MeshPhongMaterial({color: 0x888888});
+        ship.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 1.5), shipMat));
+        ship.add(new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.05, 0.6), shipMat));
         scene.add(ship);
 
-        // Environment
+        // Stars
         const starGeo = new THREE.BufferGeometry();
-        const starPos = new Float32Array(3000 * 3);
-        for(let i=0; i<9000; i++) starPos[i] = (Math.random()-0.5) * 1000;
+        const starPos = new Float32Array(2500 * 3);
+        for(let i=0; i<7500; i++) starPos[i] = (Math.random()-0.5) * 1000;
         starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.5}));
+        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.4}));
         scene.add(stars);
 
         function getBounds() {
@@ -105,7 +101,7 @@
         }
         let bounds = getBounds();
 
-        // --- MOVEMENT ---
+        // --- INPUT ---
         function move(e) {
             if (!gameActive) return;
             if (e.cancelable) e.preventDefault();
@@ -125,54 +121,12 @@
         container.addEventListener('touchmove', move, {passive: false});
         container.addEventListener('touchstart', move, {passive: false});
 
-        // --- LOGIC ---
-        function spawnObstacles(now) {
-            if (now - lastSpawn > 1400) {
-                lastSpawn = now;
-                const laser = new THREE.Mesh(new THREE.BoxGeometry(bounds.w * 0.6, 0.2, 0.2), new THREE.MeshBasicMaterial({color: 0x00e0ff}));
-                laser.position.set((Math.random()-0.5)*5, (Math.random()-0.5)*bounds.h, -100);
-                scene.add(laser);
-                obstacles.push(laser);
-            }
-            if (now - lastAsteroid > 3500) {
-                lastAsteroid = now;
-                const ast = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshPhongMaterial({color: 0x666666}));
-                ast.position.set((Math.random()-0.5)*bounds.w, (Math.random()-0.5)*bounds.h, -120);
-                scene.add(ast);
-                asteroids.push(ast);
-            }
-        }
-
-        function update(now) {
-            if (!gameActive) return;
-            stars.rotation.z += 0.001;
-
-            [...obstacles, ...asteroids].forEach((obj, i) => {
-                obj.position.z += (obj.geometry.type === 'BoxGeometry') ? 1.5 : 0.8;
-                if (obj.position.distanceTo(ship.position) < 1.4) {
-                    lives--;
-                    livesEl.innerText = `SHIELDS: ${lives}`;
-                    scene.remove(obj);
-                    if (obj.geometry.type === 'BoxGeometry') obstacles.splice(obstacles.indexOf(obj), 1);
-                    else asteroids.splice(asteroids.indexOf(obj), 1);
-                    if (lives <= 0) endGame(false);
-                } else if (obj.position.z > 12) {
-                    scene.remove(obj);
-                    if (obj.geometry.type === 'BoxGeometry') obstacles.splice(obstacles.indexOf(obj), 1);
-                    else asteroids.splice(asteroids.indexOf(obj), 1);
-                }
-            });
-
-            spawnObstacles(now);
-            renderer.render(scene, camera);
-            requestAnimationFrame(update);
-        }
-
+        // --- CORE LOOP ---
         function startGame() {
             gameActive = true;
             document.getElementById('startOverlay').style.display = 'none';
 
-            // Music Initialization
+            // Start Random Track from Playlist
             if (player && player.playVideoAt) {
                 player.setShuffle(true);
                 player.playVideoAt(Math.floor(Math.random() * 10));
@@ -189,10 +143,44 @@
             requestAnimationFrame(update);
         }
 
+        function update(now) {
+            if (!gameActive) return;
+            stars.rotation.z += 0.0008;
+
+            // Spawn obstacles (Asteroids)
+            if (now - lastSpawn > 1200) {
+                lastSpawn = now;
+                const obs = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), new THREE.MeshPhongMaterial({color: 0x555555}));
+                obs.position.set((Math.random()-0.5)*bounds.w, (Math.random()-0.5)*bounds.h, -100);
+                scene.add(obs);
+                obstacles.push(obs);
+            }
+
+            // Move and Check Collisions
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].position.z += 1.3;
+                
+                if (obstacles[i].position.distanceTo(ship.position) < 1.4) {
+                    lives--;
+                    livesEl.innerText = `SHIELDS: ${lives}`;
+                    scene.remove(obstacles[i]);
+                    obstacles.splice(i, 1);
+                    if (lives <= 0) endGame(false);
+                } else if (obstacles[i].position.z > 12) {
+                    scene.remove(obstacles[i]);
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(update);
+        }
+
         function endGame(won) {
             gameActive = false;
             clearInterval(timerInterval);
             if (player && player.stopVideo) player.stopVideo();
+
             if (won) document.getElementById('winOverlay').style.display = 'flex';
             else { alert("SHIP DESTROYED"); location.reload(); }
         }
