@@ -3,227 +3,454 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | 3D Survival</title>
+    <title>Neon Star Racer</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        :root { --pink: #ff00ff; --cyan: #00e0ff; --gold: #FFD700; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #05050a; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; align-items: center; }
-        
-        #gameContainer {
-            position: relative;
-            width: 95%;
-            max-width: 500px;
-            height: 80vh;
-            margin-top: 20px;
-            border: 3px solid var(--cyan);
-            border-radius: 20px;
-            box-shadow: 0 0 40px rgba(0, 224, 255, 0.2);
-            background: #000;
+
+        :root {
+            --pink: #ff00ff;
+            --cyan: #00e0ff;
+            --red: #ff3333;
+            --green: #33ff33;
+            --gold: #FFD700;
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            touch-action: none;
+            background: #0d0d1a;
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
         }
 
-        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; padding: 20px; }
-        .hud { font-family: 'VT323', monospace; text-shadow: 0 0 10px currentColor; }
-        #score { color: var(--pink); font-size: 1.8rem; }
-        #timer { color: var(--gold); font-size: 2.5rem; position: absolute; top: 20px; right: 20px; }
+        #gameContainer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            position: relative;
+        }
 
-        canvas { width: 100%; height: 100%; display: block; }
-        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); z-index: 50; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
-        
-        .btn {
-            background: transparent;
-            border: 2px solid var(--cyan);
-            color: var(--cyan);
-            padding: 15px 40px;
+        h1 {
             font-family: 'VT323', monospace;
-            font-size: 2rem;
-            cursor: pointer;
-            box-shadow: 0 0 15px var(--cyan);
-            transition: 0.3s;
-            border-radius: 8px;
+            color: var(--pink);
+            text-shadow: 0 0 12px var(--pink), 0 0 24px #000;
+            font-size: clamp(2.2rem, 9vw, 4.8rem);
+            margin: 0.4rem 0 1rem;
+            letter-spacing: 3px;
+            z-index: 20;
         }
-        .btn:hover { background: var(--cyan); color: #000; }
+
+        #gameCanvas {
+            width: 92%;
+            height: auto;
+            max-width: 420px;
+            aspect-ratio: 3 / 5;
+            border: 4px solid var(--cyan);
+            box-shadow: 0 0 40px var(--cyan), inset 0 0 20px var(--cyan);
+            border-radius: 16px;
+            touch-action: none;
+            background: transparent;
+            z-index: 10;
+        }
+
+        #scoreDisplay, #timerDisplay {
+            font-family: 'VT323', monospace;
+            font-size: clamp(1.8rem, 7vw, 3.2rem);
+            text-shadow: 0 0 12px currentColor;
+            margin: 0.6rem 0;
+            z-index: 20;
+        }
+        #scoreDisplay { color: var(--red); }
+        #timerDisplay {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: var(--green);
+            background: rgba(0,0,0,0.65);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 2px solid var(--green);
+        }
+
+        #startButton, #creditsButton {
+            background: linear-gradient(45deg, var(--gold), #9B59B6);
+            border: none;
+            color: white;
+            padding: 1.2rem 3rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 0 20px var(--gold), 0 0 40px #9B59B6;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            border-radius: 12px;
+            font-weight: bold;
+            margin: 1.5rem 0;
+            min-width: 260px;
+            z-index: 20;
+        }
+        #startButton:active, #creditsButton:active { transform: scale(0.96); }
+
+        #creditsOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.94);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: var(--cyan);
+            font-family: 'VT323', monospace;
+            cursor: pointer;
+            padding: 1rem;
+        }
+
+        #creditsText {
+            font-size: clamp(2rem, 7vw, 4.2rem);
+            color: var(--pink);
+            text-shadow: 0 0 25px var(--pink);
+            text-align: center;
+            animation: roll 24s linear forwards;
+        }
+
+        @keyframes roll {
+            0%   { transform: translateY(120vh); }
+            100% { transform: translateY(-160%); }
+        }
+
+        #skipText {
+            margin-top: 2.5rem;
+            font-size: 1.6rem;
+            color: var(--cyan);
+            text-shadow: 0 0 18px var(--cyan);
+        }
     </style>
 </head>
 <body>
 
-<h1 class="hud" style="color:var(--cyan); margin-top:10px;">NEON STAR RACER</h1>
-
 <div id="gameContainer">
-    <div id="ui-layer">
-        <div id="score" class="hud">GEMS: 0</div>
-        <div id="timer" class="hud">60</div>
-    </div>
-
-    <div id="overlay">
-        <h2 class="hud" style="color:var(--pink); margin-bottom:10px;">MISSION: SURVIVE 60S</h2>
-        <p style="font-size:0.9rem; margin-bottom:20px;">DODGE LASERS • COLLECT GEMS • DON'T CRASH</p>
-        <button class="btn" onclick="startGame()">INITIATE FLIGHT</button>
-    </div>
-
+    <h1>NEON STAR RACER</h1>
+    <div id="timerDisplay" style="display:none;">TIME: 60</div>
+    <div id="scoreDisplay">Score: 0</div>
     <canvas id="gameCanvas"></canvas>
+    <button id="startButton">START RACE</button>
+    <button id="creditsButton" style="display:none;">VIEW CREDITS</button>
 </div>
 
+<div id="creditsOverlay">
+    <div id="creditsText">
+        NEON STAR RACER<br>────────────<br>
+        YOU SURVIVED THE GRID<br>────────────<br>
+        Final Score: <span id="finalScore">0</span><br>────────────<br>
+        Created in Neon Fury<br>by Olympus By Merlin $Dropee<br>────────────<br>
+        THE END
+    </div>
+    <div id="skipText">TAP ANYWHERE TO RESTART</div>
+</div>
+
+<iframe id="bgVideo" 
+    src="https://www.youtube.com/embed/jwHtU4Zbzu0?autoplay=1&mute=1&controls=0&modestbranding=1&iv_load_policy=3&rel=0&loop=1&playlist=jwHtU4Zbzu0&playsinline=1&enablejsapi=1"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    frameborder="0"
+    style="position:fixed; inset:0; width:100%; height:100%; border:none; z-index:-1; pointer-events:none;">
+</iframe>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
+<script type="module">
     const canvas = document.getElementById('gameCanvas');
-    const container = document.getElementById('gameContainer');
-    const scoreEl = document.getElementById('score');
-    const timerEl = document.getElementById('timer');
-    const overlay = document.getElementById('overlay');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const startButton = document.getElementById('startButton');
+    const creditsButton = document.getElementById('creditsButton');
+    const creditsOverlay = document.getElementById('creditsOverlay');
+    const finalScoreEl = document.getElementById('finalScore');
+    const bgVideo = document.getElementById('bgVideo');
 
-    let gameActive = false;
-    let score = 0;
-    let timeLeft = 60;
-    let speed = 0.7;
-    let obstacles = [];
-    let gems = [];
-    let targetX = 0, targetY = 0;
-    let currentX = 0, currentY = 0;
+    function resize() {
+        const container = document.getElementById('gameContainer');
+        if (!container) return;
 
-    // Three.js Core
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
+        const w = container.clientWidth * 0.94;
+        const h = w * (5 / 3);
 
-    // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const pLight = new THREE.PointLight(0x00e0ff, 2, 50);
-    pLight.position.set(0, 5, 5);
-    scene.add(pLight);
+        canvas.width = w;
+        canvas.height = h;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
 
-    // --- THE AIRCRAFT ---
-    const podracer = new THREE.Group();
-    // Cockpit
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 2), new THREE.MeshPhongMaterial({color: 0x333333}));
-    podracer.add(body);
-    // Engines
-    const engGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 16);
-    const engL = new THREE.Mesh(engGeo, new THREE.MeshPhongMaterial({color: 0x666666}));
-    engL.position.set(-1.2, -0.2, 0.5); engL.rotation.x = Math.PI/2;
-    const engR = engL.clone(); engR.position.x = 1.2;
-    podracer.add(engL, engR);
-    // Energy Beam
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.05, 0.05), new THREE.MeshBasicMaterial({color: 0xff00ff}));
-    beam.position.z = 0.8; podracer.add(beam);
-    
-    scene.add(podracer);
-    camera.position.z = 8;
-
-    // --- OBSTACLE SPAWNING ---
-    function spawnEntity() {
-        const r = Math.random();
-        if (r < 0.04) { // Spawn Laser Bar
-            const group = new THREE.Group();
-            const bar = new THREE.Mesh(new THREE.BoxGeometry(20, 0.4, 0.4), new THREE.MeshBasicMaterial({color: 0xff00ff}));
-            group.add(bar);
-            group.position.set(0, (Math.random() - 0.5) * 10, -60);
-            group.userData = { type: 'laser' };
-            scene.add(group);
-            obstacles.push(group);
-        } else if (r < 0.08) { // Spawn Gem
-            const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.5), new THREE.MeshPhongMaterial({color: 0xFFD700, shininess: 100}));
-            gem.position.set((Math.random()-0.5)*12, (Math.random()-0.5)*8, -60);
-            gem.userData = { type: 'gem' };
-            scene.add(gem);
-            gems.push(gem);
-        } else if (r < 0.12) { // Spawn Small Rock
-            const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4), new THREE.MeshStandardMaterial({color: 0x00e0ff}));
-            rock.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*10, -60);
-            rock.userData = { type: 'rock' };
-            scene.add(rock);
-            obstacles.push(rock);
+        if (renderer && camera) {
+            renderer.setSize(w, h);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
         }
     }
 
-    // --- GAME LOOP ---
-    function update() {
-        if (!gameActive) return;
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(document.getElementById('gameContainer'));
 
-        // Smooth 3D Follow
-        currentX += (targetX - currentX) * 0.1;
-        currentY += (targetY - currentY) * 0.1;
-        podracer.position.x = currentX;
-        podracer.position.y = currentY;
-        
-        // Rotation Lean
-        podracer.rotation.z = -(targetX - currentX) * 0.5;
-        podracer.rotation.x = (targetY - currentY) * 0.3;
+    // Force resizes for iframe/mobile timing issues
+    window.addEventListener('load', resize);
+    window.addEventListener('resize', resize);
+    setTimeout(resize, 0);
+    setTimeout(resize, 100);
+    setTimeout(resize, 300);
+    setTimeout(resize, 600);
+    setTimeout(resize, 1000);
+    setTimeout(resize, 2000);
 
-        // Entities update
-        [...obstacles, ...gems].forEach((entity, i) => {
-            entity.position.z += speed;
-            
-            // Collision
-            const dist = podracer.position.distanceTo(entity.position);
-            if (dist < 1.2) {
-                if (entity.userData.type === 'gem') {
-                    score += 1;
-                    scoreEl.innerText = `GEMS: ${score}`;
-                    scene.remove(entity);
-                    gems.splice(gems.indexOf(entity), 1);
+    const GAME_DURATION = 60;
+    let animationFrameId;
+
+    let game = {
+        isRunning: false,
+        score: 0,
+        speed: 3.5,
+        maxSpeed: 12,
+        speedIncreaseRate: 0.004,
+        timeRemaining: GAME_DURATION,
+        timerInterval: null
+    };
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000); // aspect fixed in resize
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setClearColor(0x0d0d1a, 0.35);
+
+    scene.add(new THREE.AmbientLight(0x404040));
+    const light = new THREE.PointLight(0xffffff, 1.4, 100);
+    light.position.set(0, 30, 10);
+    scene.add(light);
+
+    const podracer = new THREE.Group();
+
+    const engineGeo = new THREE.CylinderGeometry(0.5, 0.4, 3, 32);
+    const engineMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const leftEngine = new THREE.Mesh(engineGeo, engineMat);
+    leftEngine.rotation.z = Math.PI / 2;
+    leftEngine.position.set(-1, 0, -1.5);
+    const rightEngine = leftEngine.clone();
+    rightEngine.position.set(-1, 0, 1.5);
+
+    const binderGeo = new THREE.TorusGeometry(2, 0.08, 16, 100, Math.PI);
+    const binderMat = new THREE.MeshBasicMaterial({ color: 0xbf00ff });
+    const energyBinder = new THREE.Mesh(binderGeo, binderMat);
+    energyBinder.rotation.y = Math.PI / 2;
+
+    const cockpitGeo = new THREE.CapsuleGeometry(0.4, 0.8, 8, 16);
+    const cockpitMat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+    const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+    cockpit.rotation.z = Math.PI / 2;
+    cockpit.position.set(-4, 0, 0);
+
+    const cableGeo = new THREE.CylinderGeometry(0.03, 0.03, 6, 8);
+    const cableMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+    const cableL = new THREE.Mesh(cableGeo, cableMat);
+    cableL.rotation.z = Math.PI / 2;
+    cableL.position.set(-2.5, 0, -1);
+    const cableR = cableL.clone();
+    cableR.position.set(-2.5, 0, 1);
+
+    podracer.add(leftEngine, rightEngine, energyBinder, cockpit, cableL, cableR);
+    podracer.scale.set(0.6, 0.6, 0.6);
+    podracer.position.set(0, -8, 0);
+    podracer.rotation.x = Math.PI / 2;
+    scene.add(podracer);
+
+    camera.position.set(0, 25, 0);
+    camera.lookAt(0, 0, 0);
+
+    let podTargetX = 0;
+    const trackLeft = -12;
+    const trackRight = 12;
+
+    let obstacles = [];
+    let obstacleMeshes = [];
+    let obstacleTimer = 0;
+    let obstacleInterval = 80;
+
+    function createObstacleMesh(obs) {
+        let mesh;
+        if (obs.type === 'gate') {
+            const group = new THREE.Group();
+            const gateMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.9 });
+            const barGeo = new THREE.BoxGeometry(1, 0.6, 12);
+            const leftBar = new THREE.Mesh(barGeo, gateMat);
+            leftBar.position.x = obs.leftEnd + obs.gapWidth / 2;
+            group.add(leftBar);
+            const rightBar = leftBar.clone();
+            rightBar.position.x = obs.rightStart + (30 - obs.rightStart) / 2;
+            group.add(rightBar);
+            mesh = group;
+        } else {
+            const rockGeo = new THREE.SphereGeometry(1.2, 12, 12);
+            const rockMat = new THREE.MeshBasicMaterial({ color: 0xff8c00 });
+            mesh = new THREE.Mesh(rockGeo, rockMat);
+        }
+        mesh.position.set(obs.x, obs.y, 0);
+        scene.add(mesh);
+        return mesh;
+    }
+
+    function checkCollision() {
+        const podX = podracer.position.x;
+        const podY = podracer.position.y;
+        for (const obs of obstacles) {
+            if (Math.abs(podY - obs.y) < 3) {
+                if (obs.type === 'gate') {
+                    if (podX < obs.leftEnd || podX > obs.rightStart) return true;
                 } else {
-                    endGame();
+                    if (Math.hypot(podX - obs.x, podY - obs.y) < 3) return true;
                 }
             }
+        }
+        return false;
+    }
 
-            if (entity.position.z > 10) {
-                scene.remove(entity);
-                if (entity.userData.type === 'gem') gems.splice(gems.indexOf(entity), 1);
-                else obstacles.splice(obstacles.indexOf(entity), 1);
+    function update() {
+        if (!game.isRunning) return;
+
+        if (game.timeRemaining <= 0) {
+            endGame("YOU SURVIVED!", true);
+            return;
+        }
+
+        podracer.position.x += (podTargetX - podracer.position.x) * 0.25;
+        podracer.position.x = Math.max(trackLeft, Math.min(trackRight, podracer.position.x));
+
+        game.score += game.speed / 12;
+        scoreDisplay.textContent = `Score: ${Math.floor(game.score)}`;
+        game.speed = Math.min(game.maxSpeed, game.speed + game.speedIncreaseRate);
+
+        obstacleTimer++;
+        if (obstacleTimer > obstacleInterval) {
+            const isGate = Math.random() > 0.35;
+            let obs;
+            if (isGate) {
+                const gapWidth = 5 + Math.random() * 4;
+                const leftEnd = trackLeft + Math.random() * (trackRight - trackLeft - gapWidth - 4);
+                obs = { type: 'gate', y: 30, leftEnd, gapWidth, rightStart: leftEnd + gapWidth };
+            } else {
+                obs = { type: 'missile', x: trackLeft + Math.random() * (trackRight - trackLeft), y: 30 };
+            }
+            obstacles.push(obs);
+            obstacleMeshes.push(createObstacleMesh(obs));
+            obstacleTimer = 0;
+            obstacleInterval = Math.max(35, obstacleInterval - 0.3);
+        }
+
+        obstacles.forEach((obs, i) => {
+            obs.y -= game.speed * 0.6;
+            obstacleMeshes[i].position.y = obs.y;
+            if (obs.type === 'gate') {
+                obstacleMeshes[i].children.forEach(child => child.position.y = obs.y);
             }
         });
 
-        spawnEntity();
-        speed += 0.0005;
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            if (obstacles[i].y < -15) {
+                scene.remove(obstacleMeshes[i]);
+                obstacles.splice(i, 1);
+                obstacleMeshes.splice(i, 1);
+            }
+        }
+
+        if (checkCollision()) {
+            endGame("POD CRASHED!", false);
+            return;
+        }
+
+        podracer.rotation.z = Math.sin(Date.now() * 0.002) * 0.1;
+
         renderer.render(scene, camera);
-        requestAnimationFrame(update);
+        animationFrameId = requestAnimationFrame(update);
     }
 
-    // --- CONTROLS ---
-    const handleInput = (e) => {
-        const rect = container.getBoundingClientRect();
-        const x = e.touches ? e.touches[0].clientX : e.clientX;
-        const y = e.touches ? e.touches[0].clientY : e.clientY;
-        targetX = ((x - rect.left) / rect.width) * 20 - 10;
-        targetY = -(((y - rect.top) / rect.height) * 14 - 7);
-    };
-    container.addEventListener('mousemove', handleInput);
-    container.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive:false});
+    function endGame(title, showCredits = false) {
+        game.isRunning = false;
+        cancelAnimationFrame(animationFrameId);
+        clearInterval(game.timerInterval);
+
+        if (showCredits) {
+            finalScoreEl.textContent = Math.floor(game.score);
+            creditsButton.style.display = 'block';
+            creditsButton.textContent = "VIEW CREDITS";
+            creditsButton.onclick = () => {
+                bgVideo.src = "https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1&mute=0&controls=0&modestbranding=1&iv_load_policy=3&rel=0&playsinline=1";
+                creditsOverlay.style.display = 'flex';
+                creditsButton.style.display = 'none';
+                creditsOverlay.onclick = () => {
+                    creditsOverlay.style.display = 'none';
+                    bgVideo.src = "https://www.youtube.com/embed/jwHtU4Zbzu0?autoplay=1&mute=1&controls=0&modestbranding=1&iv_load_policy=3&rel=0&loop=1&playlist=jwHtU4Zbzu0&playsinline=1";
+                    startGame();
+                };
+            };
+        } else {
+            alert(title + "\nScore: " + Math.floor(game.score) + "\n\nTap OK to restart.");
+            startGame();
+        }
+    }
 
     function startGame() {
-        gameActive = true;
-        score = 0;
-        timeLeft = 60;
-        speed = 0.7;
-        overlay.style.display = 'none';
-        
-        const timer = setInterval(() => {
-            timeLeft--;
-            timerEl.innerText = timeLeft;
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                winGame();
-            }
-            if (!gameActive) clearInterval(timer);
+        game.isRunning = true;
+        game.score = 0;
+        game.speed = 3.5;
+        game.timeRemaining = GAME_DURATION;
+        obstacles = [];
+        obstacleMeshes = [];
+        obstacleInterval = 80;
+        podTargetX = 0;
+        podracer.position.x = 0;
+
+        timerDisplay.style.display = 'block';
+        scoreDisplay.textContent = 'Score: 0';
+        timerDisplay.textContent = 'TIME: 60';
+        creditsButton.style.display = 'none';
+
+        clearInterval(game.timerInterval);
+        game.timerInterval = setInterval(() => {
+            game.timeRemaining--;
+            timerDisplay.textContent = `TIME: ${game.timeRemaining}`;
+            if (game.timeRemaining <= 0) timerDisplay.textContent = 'TIME: 0';
         }, 1000);
+
+        bgVideo.contentWindow?.postMessage('{"event":"command","func":"unMute","args":[]}', '*');
+
         update();
     }
 
-    function winGame() {
-        gameActive = false;
-        alert(`SURVIVAL COMPLETE!\nYou collected ${score} Gems.`);
-        location.reload();
+    function updateTargetX(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const normX = (clientX - rect.left) / rect.width * 2 - 1;
+        podTargetX = normX * 12;
     }
 
-    function endGame() {
-        gameActive = false;
-        alert(`SYSTEM FAILURE\nYou survived for ${60 - timeLeft} seconds.`);
-        location.reload();
+    canvas.addEventListener('mousemove', e => game.isRunning && updateTargetX(e));
+    canvas.addEventListener('touchmove', e => { e.preventDefault(); game.isRunning && updateTargetX(e); }, { passive: false });
+    canvas.addEventListener('mousedown', e => game.isRunning && updateTargetX(e));
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); game.isRunning && updateTargetX(e); }, { passive: false });
+
+    startButton.addEventListener('click', startGame);
+    startButton.addEventListener('touchstart', e => { e.preventDefault(); startGame(); }, { passive: false });
+
+    function teaserAnimate() {
+        podracer.rotation.y += 0.005;
+        renderer.render(scene, camera);
+        requestAnimationFrame(teaserAnimate);
     }
+    teaserAnimate();
 </script>
 </body>
 </html>
