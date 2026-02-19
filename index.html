@@ -104,128 +104,82 @@
     sunLight.position.set(50, 20, -200);
     scene.add(sunLight);
 
-    // Named references (this fixes the crash)
-    const sun = new THREE.Mesh(
-        new THREE.SphereGeometry(20, 32, 32),
-        new THREE.MeshBasicMaterial({color: 0xffeecc})
-    );
-    sun.position.set(100, 50, -400);
-    scene.add(sun);
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(20,32,32), new THREE.MeshBasicMaterial({color:0xffeecc}));
+    sun.position.set(100,50,-400); scene.add(sun);
 
-    const planet1 = new THREE.Mesh(
-        new THREE.SphereGeometry(8, 32, 32),
-        new THREE.MeshPhongMaterial({color: 0x88aaff, emissive: 0x2244aa})
-    );
-    planet1.position.set(-40, 30, -300);
-    scene.add(planet1);
+    const planet1 = new THREE.Mesh(new THREE.SphereGeometry(8,32,32), new THREE.MeshPhongMaterial({color:0x88aaff,emissive:0x2244aa}));
+    planet1.position.set(-40,30,-300); scene.add(planet1);
 
-    const planet2 = new THREE.Mesh(
-        new THREE.SphereGeometry(12, 32, 32),
-        new THREE.MeshPhongMaterial({color: 0xffaa88, emissive: 0xaa4422})
-    );
-    planet2.position.set(60, -20, -500);
-    scene.add(planet2);
+    const planet2 = new THREE.Mesh(new THREE.SphereGeometry(12,32,32), new THREE.MeshPhongMaterial({color:0xffaa88,emissive:0xaa4422}));
+    planet2.position.set(60,-20,-500); scene.add(planet2);
 
-    // Star field
     const starsGeo = new THREE.BufferGeometry();
     const posArray = new Float32Array(5000 * 3);
     for(let i = 0; i < posArray.length; i++) posArray[i] = (Math.random() - 0.5) * 2000;
     starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const starField = new THREE.Points(starsGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.7}));
+    const starField = new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0xffffff, size:0.7}));
     scene.add(starField);
 
-    // Ship
     const ship = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x555555}));
-    const wing = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2), new THREE.MeshPhongMaterial({color: 0x222222}));
-    wing.rotation.x = Math.PI/2;
-    wing.position.set(-1.2, 0, 0.2);
-    const wingR = wing.clone();
-    wingR.position.x = 1.2;
-    ship.add(body, wing, wingR);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1,0.3,1.5), new THREE.MeshPhongMaterial({color:0x555555}));
+    const wing = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,1.2), new THREE.MeshPhongMaterial({color:0x222222}));
+    wing.rotation.x = Math.PI/2; wing.position.set(-1.2,0,0.2);
+    ship.add(body, wing, wing.clone().position.set(1.2,0,0.2));
     scene.add(ship);
 
     function getBounds() {
         const vFOV = THREE.MathUtils.degToRad(camera.fov);
         const height = 2 * Math.tan(vFOV / 2) * camera.position.z;
         const width = height * camera.aspect;
-        return { x: (width / 2) - 1.5, y: (height / 2) - 1.0 };
+        return { w: width * 0.9, h: height * 0.9 }; // slightly inset to keep ship fully visible
     }
     let bounds = getBounds();
 
     function spawnLaser(now) {
         if (now - lastSpawn < 2000) return;
         lastSpawn = now;
-        const colors = [0xff00ff, 0x00e0ff, 0x39ff14, 0xffff00];
-        const laser = new THREE.Mesh(
-            new THREE.BoxGeometry(30, 0.3, 0.3),
-            new THREE.MeshBasicMaterial({color: colors[Math.floor(Math.random() * colors.length)]})
-        );
-        laser.position.set(0, (Math.random() - 0.5) * bounds.y * 2, -100);
-        scene.add(laser);
-        obstacles.push(laser);
+        const colors = [0xff00ff,0x00e0ff,0x39ff14,0xffff00];
+        const laser = new THREE.Mesh(new THREE.BoxGeometry(30,0.3,0.3), new THREE.MeshBasicMaterial({color:colors[Math.floor(Math.random()*4)]}));
+        laser.position.set(0, (Math.random()-0.5)*bounds.h, -100);
+        scene.add(laser); obstacles.push(laser);
     }
 
     function spawnAsteroid(now) {
         if (now - lastAsteroid < 8000 + Math.random()*4000) return;
         lastAsteroid = now;
-        const asteroid = new THREE.Mesh(
-            new THREE.SphereGeometry(1.2 + Math.random()*1.5, 8, 8),
-            new THREE.MeshPhongMaterial({color: 0x888888, emissive: 0x222222})
-        );
-        asteroid.position.set(
-            (Math.random() - 0.5) * bounds.x * 1.8,
-            (Math.random() - 0.5) * bounds.y * 1.8,
-            -150 - Math.random()*50
-        );
-        scene.add(asteroid);
-        asteroids.push(asteroid);
+        const asteroid = new THREE.Mesh(new THREE.SphereGeometry(1.2+Math.random()*1.5,8,8), new THREE.MeshPhongMaterial({color:0x888888,emissive:0x222222}));
+        asteroid.position.set((Math.random()-0.5)*bounds.w, (Math.random()-0.5)*bounds.h, -150-Math.random()*50);
+        scene.add(asteroid); asteroids.push(asteroid);
     }
 
     function update(now) {
         if (!gameActive) return;
 
-        planet1.position.z += 0.3;
-        planet2.position.z += 0.25;
-        sun.position.z += 0.15;
-        if (planet1.position.z > 50) planet1.position.z = -400;
-        if (planet2.position.z > 50) planet2.position.z = -500;
-        if (sun.position.z > 100) sun.position.z = -400;
-
+        planet1.position.z += 0.3; if (planet1.position.z > 50) planet1.position.z = -400;
+        planet2.position.z += 0.25; if (planet2.position.z > 50) planet2.position.z = -500;
+        sun.position.z += 0.15; if (sun.position.z > 100) sun.position.z = -400;
         starField.rotation.y += 0.0001;
 
-        // Lasers
         for (let i = obstacles.length - 1; i >= 0; i--) {
             const o = obstacles[i];
             o.position.z += 0.8;
             if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(o))) {
-                lives--;
-                livesEl.innerText = `SHIELDS: ${lives}`;
-                scene.remove(o);
-                obstacles.splice(i, 1);
+                lives--; livesEl.innerText = `SHIELDS: ${lives}`;
+                scene.remove(o); obstacles.splice(i,1);
                 if (lives <= 0) return endGame(false);
             }
-            if (o.position.z > 12) {
-                scene.remove(o);
-                obstacles.splice(i, 1);
-            }
+            if (o.position.z > 12) { scene.remove(o); obstacles.splice(i,1); }
         }
 
-        // Asteroids
         for (let i = asteroids.length - 1; i >= 0; i--) {
             const a = asteroids[i];
             a.position.z += 0.6;
             if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(a))) {
-                lives--;
-                livesEl.innerText = `SHIELDS: ${lives}`;
-                scene.remove(a);
-                asteroids.splice(i, 1);
+                lives--; livesEl.innerText = `SHIELDS: ${lives}`;
+                scene.remove(a); asteroids.splice(i,1);
                 if (lives <= 0) return endGame(false);
             }
-            if (a.position.z > 12) {
-                scene.remove(a);
-                asteroids.splice(i, 1);
-            }
+            if (a.position.z > 12) { scene.remove(a); asteroids.splice(i,1); }
         }
 
         spawnLaser(now);
@@ -236,36 +190,43 @@
 
     function move(e) {
         if (!gameActive) return;
+        e.preventDefault();
         const rect = container.getBoundingClientRect();
         const touch = e.touches ? e.touches[0] : e;
-        const px = (touch.clientX - rect.left) / rect.width;
-        const py = (touch.clientY - rect.top) / rect.height;
-        ship.position.x = (px * 2 - 1) * bounds.x;
-        ship.position.y = -(py * 2 - 1) * bounds.y;
-        ship.rotation.z = -ship.position.x * 0.1;
-        ship.rotation.x = -ship.position.y * 0.05;
+
+        // Normalized position (0 to 1)
+        let nx = (touch.clientX - rect.left) / rect.width;
+        let ny = (touch.clientY - rect.top) / rect.height;
+
+        // Map directly to world space, centered on touch point
+        ship.position.x = (nx * 2 - 1) * (bounds.w / 2);
+        ship.position.y = -(ny * 2 - 1) * (bounds.h / 2);
+
+        // Small tilt for feel
+        ship.rotation.z = -ship.position.x * 0.08;
+        ship.rotation.x = -ship.position.y * 0.04;
     }
 
     container.addEventListener('mousemove', move);
-    container.addEventListener('touchmove', e => { e.preventDefault(); move(e); }, {passive: false});
+    container.addEventListener('touchmove', move, {passive: false});
+    container.addEventListener('touchstart', move, {passive: false}); // snap on initial touch too
 
     function startGame() {
         gameActive = true;
-        lives = 3;
-        timeLeft = 60;
-        livesEl.innerText = `SHIELDS: 3`;
-        timerEl.innerText = `60s`;
+        lives = 3; timeLeft = 60;
+        livesEl.innerText = 'SHIELDS: 3';
+        timerEl.innerText = '60s';
         startOverlay.style.display = 'none';
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'none';
-        unmuteBtn.classList.remove('hidden');
+        if (unmuteBtn) unmuteBtn.classList.remove('hidden');
 
         bgAudioVideo.src = 'https://www.youtube.com/embed/o4uyUol4wBI?autoplay=1&controls=0&modestbranding=1&showinfo=0&rel=0';
 
-        obstacles = [];
-        asteroids = [];
+        obstacles = []; asteroids = [];
 
         timerInterval = setInterval(() => {
+            if (!gameActive) return;
             timeLeft--;
             timerEl.innerText = `${timeLeft}s`;
             if (timeLeft <= 0) {
@@ -282,12 +243,8 @@
         gameActive = false;
         clearInterval(timerInterval);
         bgAudioVideo.src = '';
-        if (won) {
-            winOverlay.style.display = 'flex';
-        } else {
-            alert("SHIELDS DEPLETED - GAME OVER");
-            restart();
-        }
+        if (won) winOverlay.style.display = 'flex';
+        else { alert("SHIELDS DEPLETED - GAME OVER"); restart(); }
     }
 
     function showRewardVideo() {
@@ -295,11 +252,13 @@
         videoOverlay.style.display = 'flex';
     }
 
-    unmuteBtn.addEventListener('click', () => {
-        let src = rewardVideo.src;
-        rewardVideo.src = src.replace('&mute=1', '');
-        unmuteBtn.classList.add('hidden');
-    });
+    if (unmuteBtn) {
+        unmuteBtn.addEventListener('click', () => {
+            let src = document.getElementById('rewardVideo').src;
+            document.getElementById('rewardVideo').src = src.replace('&mute=1', '');
+            unmuteBtn.classList.add('hidden');
+        });
+    }
 
     function restart() {
         location.reload();
