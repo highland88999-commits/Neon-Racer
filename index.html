@@ -40,12 +40,16 @@
         #winOverlay p { color: #fff; font-size: 1.8rem; margin-bottom: 30px; }
 
         #videoOverlay { background: #000; }
-        #rewardVideo { width: 100%; height: 100%; }
+        #rewardVideo, #bgAudioVideo { width: 100%; height: 100%; }
         #skipBtn {
             position: absolute; top: 20px; right: 20px;
             background: rgba(0,0,0,0.6); border: 2px solid var(--cyan);
             color: var(--cyan); padding: 10px 20px; font-size: 1.5rem;
             z-index: 100; cursor: pointer;
+        }
+
+        #bgAudioContainer {
+            position: absolute; inset: 0; pointer-events: none; z-index: 1; opacity: 0.08; /* subtle visual if desired; set to 0 for audio-only */
         }
     </style>
 </head>
@@ -55,6 +59,17 @@
     <div id="ui">
         <div id="lives" class="stat" style="color:var(--red)">SHIELDS: 3</div>
         <div id="timer" class="stat" style="color:var(--cyan)">60s</div>
+    </div>
+
+    <!-- Background cinematic audio/visual (hidden/low opacity) -->
+    <div id="bgAudioContainer">
+        <iframe 
+            id="bgAudioVideo" 
+            src="" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+        </iframe>
     </div>
 
     <!-- Start overlay -->
@@ -70,7 +85,7 @@
         <button class="btn" onclick="showRewardVideo()">Continue</button>
     </div>
 
-    <!-- Video reward overlay (now unmuted) -->
+    <!-- Post-credit reward video -->
     <div id="videoOverlay" class="overlay" style="display:none;">
         <button id="skipBtn" onclick="restart()">Skip</button>
         <iframe 
@@ -94,17 +109,61 @@
     const startOverlay = document.getElementById('startOverlay');
     const winOverlay = document.getElementById('winOverlay');
     const videoOverlay = document.getElementById('videoOverlay');
+    const bgAudioVideo = document.getElementById('bgAudioVideo');
 
-    let gameActive = false, timeLeft = 60, lives = 3, obstacles = [], lastSpawn = 0;
+    let gameActive = false, timeLeft = 60, lives = 3, obstacles = [], asteroids = [], lastSpawn = 0, lastAsteroid = 0;
     let timerInterval = null;
     
-    // Three.js setup (unchanged)
+    // Three.js setup
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    scene.background = new THREE.Color(0x000022); // deep space
+    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     camera.position.z = 10;
 
+    // Lights
+    scene.add(new THREE.AmbientLight(0x404040, 2));
+    const sunLight = new THREE.PointLight(0xffddaa, 3, 1000);
+    sunLight.position.set(50, 20, -200);
+    scene.add(sunLight);
+
+    // Sun (distant glowing body)
+    const sun = new THREE.Mesh(
+        new THREE.SphereGeometry(20, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0xffeecc })
+    );
+    sun.position.set(100, 50, -400);
+    scene.add(sun);
+
+    // Planets (simple passing orbs)
+    const planet1 = new THREE.Mesh(
+        new THREE.SphereGeometry(8, 32, 32),
+        new THREE.MeshPhongMaterial({ color: 0x88aaff, emissive: 0x2244aa })
+    );
+    planet1.position.set(-40, 30, -300);
+    scene.add(planet1);
+
+    const planet2 = new THREE.Mesh(
+        new THREE.SphereGeometry(12, 32, 32),
+        new THREE.MeshPhongMaterial({ color: 0xffaa88, emissive: 0xaa4422 })
+    );
+    planet2.position.set(60, -20, -500);
+    scene.add(planet2);
+
+    // Star field (particles)
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsCount = 5000;
+    const posArray = new Float32Array(starsCount * 3);
+    for(let i = 0; i < starsCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 2000;
+    }
+    starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+    const starField = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(starField);
+
+    // Ship
     const ship = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x555555}));
     const wingL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2), new THREE.MeshPhongMaterial({color: 0x222222}));
@@ -112,7 +171,6 @@
     const wingR = wingL.clone(); wingR.position.x = 1.2;
     ship.add(body, wingL, wingR);
     scene.add(ship);
-    scene.add(new THREE.AmbientLight(0xffffff, 1));
 
     function getBounds() {
         const vFOV = THREE.MathUtils.degToRad(camera.fov);
@@ -137,21 +195,49 @@
         obstacles.push(laser);
     }
 
+    function spawnAsteroid(now) {
+        if (now - lastAsteroid < 8000 + Math.random()*4000) return;
+        lastAsteroid = now;
+
+        const asteroid = new THREE.Mesh(
+            new THREE.SphereGeometry(1.2 + Math.random()*1.5, 8, 8),
+            new THREE.MeshPhongMaterial({ color: 0x888888, emissive: 0x222222 })
+        );
+        asteroid.position.set(
+            (Math.random() - 0.5) * bounds.x * 1.8,
+            (Math.random() - 0.5) * bounds.y * 1.8,
+            -150 - Math.random()*50
+        );
+        scene.add(asteroid);
+        asteroids.push(asteroid);
+    }
+
     function update(now) {
         if (!gameActive) return;
+
+        // Move background elements slowly
+        planet1.position.z += 0.3;
+        planet2.position.z += 0.25;
+        sun.position.z += 0.15;
+        if (planet1.position.z > 50) planet1.position.z = -400;
+        if (planet2.position.z > 50) planet2.position.z = -500;
+        if (sun.position.z > 100) sun.position.z = -400;
+
+        // Star field subtle scroll
+        starField.rotation.y += 0.0001;
 
         for (let i = obstacles.length - 1; i >= 0; i--) {
             const o = obstacles[i];
             o.position.z += 0.8;
 
             const shipBox = new THREE.Box3().setFromObject(ship);
-            const laserBox = new THREE.Box3().setFromObject(o);
-            if (shipBox.intersectsBox(laserBox)) {
+            const objBox = new THREE.Box3().setFromObject(o);
+            if (shipBox.intersectsBox(objBox)) {
                 lives--;
                 livesEl.innerText = `SHIELDS: ${lives}`;
                 scene.remove(o);
                 obstacles.splice(i, 1);
-                if (lives <= 0) restart();
+                if (lives <= 0) endGame(false);
                 continue;
             }
 
@@ -161,7 +247,30 @@
             }
         }
 
+        // Asteroids update
+        for (let i = asteroids.length - 1; i >= 0; i--) {
+            const a = asteroids[i];
+            a.position.z += 0.6; // slower than lasers
+
+            const shipBox = new THREE.Box3().setFromObject(ship);
+            const astBox = new THREE.Box3().setFromObject(a);
+            if (shipBox.intersectsBox(astBox)) {
+                lives--;
+                livesEl.innerText = `SHIELDS: ${lives}`;
+                scene.remove(a);
+                asteroids.splice(i, 1);
+                if (lives <= 0) endGame(false);
+                continue;
+            }
+
+            if (a.position.z > 12) {
+                scene.remove(a);
+                asteroids.splice(i, 1);
+            }
+        }
+
         spawnLaser(now);
+        spawnAsteroid(now);
         renderer.render(scene, camera);
         requestAnimationFrame(update);
     }
@@ -191,8 +300,13 @@
         startOverlay.style.display = 'none';
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'none';
+
+        // Start background cinematic audio
+        bgAudioVideo.src = 'https://www.youtube.com/embed/o4uyUol4wBI?autoplay=1&loop=0&controls=0&modestbranding=1&showinfo=0&rel=0';
+
         obstacles.forEach(o => scene.remove(o));
-        obstacles = [];
+        asteroids.forEach(a => scene.remove(a));
+        obstacles = []; asteroids = [];
 
         timerInterval = setInterval(() => {
             if (!gameActive) { clearInterval(timerInterval); return; }
@@ -201,24 +315,35 @@
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
                 gameActive = false;
-                winOverlay.style.display = 'flex';
+                endGame(true);
             }
         }, 1000);
 
         requestAnimationFrame(update);
     }
 
+    function endGame(won) {
+        gameActive = false;
+        clearInterval(timerInterval);
+        bgAudioVideo.src = ''; // pause/stop background
+
+        if (won) {
+            winOverlay.style.display = 'flex';
+        } else {
+            alert("SHIELDS DEPLETED - GAME OVER");
+            restart();
+        }
+    }
+
     function showRewardVideo() {
         winOverlay.style.display = 'none';
         videoOverlay.style.display = 'flex';
 
-        const iframe = document.getElementById('rewardVideo');
-        // YouTube IFrame API listener for end detection
-        window.addEventListener('message', (event) => {
-            if (event.origin.includes('youtube.com') && event.data.event === 'onStateChange') {
-                if (event.data.info === 0) { // YT.PlayerState.ENDED
-                    restart();
-                }
+        // YouTube end detection
+        window.addEventListener('message', function onYTMessage(event) {
+            if (event.origin.includes('youtube.com') && event.data.event === 'onStateChange' && event.data.info === 0) {
+                restart();
+                window.removeEventListener('message', onYTMessage);
             }
         });
     }
@@ -226,6 +351,7 @@
     function restart() {
         gameActive = false;
         clearInterval(timerInterval);
+        bgAudioVideo.src = '';
         location.reload();
     }
 
