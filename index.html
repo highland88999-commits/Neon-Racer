@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Precision Survival</title>
+    <title>Neon Star Racer | Combat 90</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         :root { --pink: #ff00ff; --cyan: #00e0ff; --red: #ff3131; }
@@ -13,107 +13,114 @@
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 20; padding: 20px; display: flex; justify-content: space-between; font-family: 'VT323', monospace; }
         .stat { font-size: 2rem; text-shadow: 0 0 10px rgba(0,224,255,0.5); }
         .overlay { position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
-        .btn { background: none; border: 2px solid var(--pink); color: var(--pink); padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem; cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px; transition: all 0.2s; }
-        .btn:hover { background: var(--pink); color: #000; box-shadow: 0 0 25px var(--pink); }
-        #winOverlay h1 { color: var(--cyan); font-size: 3.2rem; margin-bottom: 15px; text-shadow: 0 0 20px var(--cyan); }
-        #winOverlay p { color: #fff; font-size: 1.8rem; margin-bottom: 30px; }
-        #videoOverlay { background: #000; position: relative; }
-        #rewardVideo { width: 100%; height: 100%; }
-        .control-btn { position: absolute; background: rgba(0,0,0,0.7); border: 2px solid var(--cyan); color: var(--cyan); padding: 12px 24px; font-family: 'VT323', monospace; font-size: 1.6rem; cursor: pointer; z-index: 100; }
-        #skipBtn { top: 20px; right: 20px; }
-        #unmuteBtn { bottom: 20px; left: 20px; }
-        #unmuteBtn.hidden { display: none; }
+        .btn { background: none; border: 2px solid var(--pink); color: var(--pink); padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem; cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px; }
+        
+        /* COMBAT BUTTON */
+        #fireBtn {
+            position: absolute;
+            bottom: 40px;
+            left: 30px;
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: rgba(255, 0, 255, 0.2);
+            border: 4px solid var(--pink);
+            color: var(--pink);
+            font-family: 'VT323', monospace;
+            font-size: 1.8rem;
+            z-index: 100;
+            display: none; /* Shown on start */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px var(--pink);
+            pointer-events: auto;
+            user-select: none;
+        }
+        #fireBtn:active { background: var(--pink); color: #000; }
+
+        #musicPlayer { position: absolute; top: -100px; left: -100px; width: 1px; height: 1px; pointer-events: none; }
         canvas { display: block; width: 100%; height: 100%; }
-        #musicPlayer { position: absolute; visibility: hidden; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <div id="musicPlayer"></div>
-
         <div id="ui">
             <div id="lives" class="stat" style="color:var(--red)">SHIELDS: 3</div>
-            <div id="timer" class="stat" style="color:var(--cyan)">60s</div>
+            <div id="timer" class="stat" style="color:var(--cyan)">90s</div>
         </div>
 
+        <div id="fireBtn">FIRE</div>
+
         <div id="startOverlay" class="overlay">
-            <h1 style="color:var(--cyan); font-size:3rem; margin-bottom:20px;">SURVIVE 60 SECONDS</h1>
+            <h1 style="color:var(--cyan); font-size:2.8rem; margin-bottom:10px;">SURVIVE 90 SECONDS</h1>
+            <p style="color:white; font-family:'VT323'; font-size:1.5rem; margin-bottom:20px;">TATOOINE AIRSPACE: COMBAT READY</p>
             <button class="btn" onclick="startGame()">ENGINE START</button>
         </div>
 
         <div id="winOverlay" class="overlay" style="display:none;">
-            <h1>MISSION ACCOMPLISHED</h1>
-            <p style="color:var(--pink); font-size:2.2rem;">Tatooine Airspace Clear</p>
-            <button class="btn" onclick="showRewardVideo()">Continue</button>
+            <h1 style="color:var(--cyan);">MISSION COMPLETE</h1>
+            <p id="finalKills" style="color:var(--pink); font-family:'VT323'; font-size:1.8rem;"></p>
+            <button class="btn" onclick="location.reload()">RESTART</button>
         </div>
 
-        <div id="videoOverlay" class="overlay" style="display:none;">
-            <button id="skipBtn" class="control-btn" onclick="restart()">Skip</button>
-            <button id="unmuteBtn" class="control-btn">Unmute</button>
-            <iframe id="rewardVideo" src="https://www.youtube.com/embed/B7FMh3YtK_w?autoplay=1&mute=1&enablejsapi=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
         <canvas id="gameCanvas"></canvas>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // YouTube API Setup
+        // --- YOUTUBE API ---
         let player;
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        document.head.appendChild(tag);
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('musicPlayer', {
-                height: '0',
-                width: '0',
+                height: '1', width: '1',
                 playerVars: {
                     'listType': 'playlist',
                     'list': 'PLN7QpbidlV6UPOHQoR9Vw3Bxq0Wj_DrCp',
-                    'autoplay': 0,
-                    'controls': 0
+                    'autoplay': 0, 'controls': 0
                 }
             });
         }
 
+        // --- GAME ENGINE ---
         const canvas = document.getElementById('gameCanvas');
         const container = document.getElementById('gameContainer');
+        const fireBtn = document.getElementById('fireBtn');
         const timerEl = document.getElementById('timer');
         const livesEl = document.getElementById('lives');
-        const startOverlay = document.getElementById('startOverlay');
-        const winOverlay = document.getElementById('winOverlay');
-        const videoOverlay = document.getElementById('videoOverlay');
-        const unmuteBtn = document.getElementById('unmuteBtn');
-
-        let gameActive = false, timeLeft = 60, lives = 3;
-        let obstacles = [], asteroids = [], lastSpawn = 0, lastAsteroid = 0;
+        
+        let gameActive = false, timeLeft = 90, lives = 3, kills = 0;
+        let enemies = [], bullets = [], stars;
+        let lastEnemySpawn = 0;
         let timerInterval;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000011);
+        scene.background = new THREE.Color(0x000008);
         const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
         renderer.setSize(container.clientWidth, container.clientHeight);
         camera.position.z = 10;
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const sunLight = new THREE.PointLight(0xffddaa, 2, 1000);
-        sunLight.position.set(50, 20, -100);
-        scene.add(sunLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
-        const starGeo = new THREE.BufferGeometry();
-        const starPos = new Float32Array(3000 * 3);
-        for(let i=0; i<9000; i++) starPos[i] = (Math.random()-0.5) * 1000;
-        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.5}));
-        scene.add(stars);
-
+        // Player Ship
         const ship = new THREE.Group();
-        const shipMat = new THREE.MeshPhongMaterial({color: 0x888888, shininess: 100});
-        ship.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 1.5), shipMat));
-        ship.add(new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.6), shipMat));
+        const shipMat = new THREE.MeshPhongMaterial({color: 0x00e0ff});
+        ship.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 1.5), shipMat));
+        ship.add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.05, 0.8), shipMat));
         scene.add(ship);
+
+        // Stars
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(2000 * 3);
+        for(let i=0; i<6000; i++) starPos[i] = (Math.random()-0.5) * 1000;
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.4}));
+        scene.add(stars);
 
         function getBounds() {
             const vFOV = THREE.MathUtils.degToRad(camera.fov);
@@ -122,136 +129,133 @@
         }
         let bounds = getBounds();
 
+        // --- COMBAT LOGIC ---
+        function shoot() {
+            if (!gameActive) return;
+            const bMat = new THREE.MeshBasicMaterial({color: 0x00ff00});
+            const bGeo = new THREE.BoxGeometry(0.1, 0.1, 1);
+            const b = new THREE.Mesh(bGeo, bMat);
+            b.position.set(ship.position.x, ship.position.y, ship.position.z - 1);
+            scene.add(b);
+            bullets.push(b);
+        }
+
+        fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
+        fireBtn.addEventListener('mousedown', (e) => { shoot(); });
+
+        function spawnEnemy(now) {
+            if (now - lastEnemySpawn < 1800) return;
+            lastEnemySpawn = now;
+            const eGeo = new THREE.ConeGeometry(0.7, 1.5, 4);
+            const eMat = new THREE.MeshPhongMaterial({color: 0xff3131});
+            const enemy = new THREE.Mesh(eGeo, eMat);
+            enemy.rotation.x = Math.PI/2;
+            enemy.position.set((Math.random()-0.5)*bounds.w, (Math.random()-0.5)*bounds.h, -100);
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+
+        // --- INPUT ---
         function move(e) {
             if (!gameActive) return;
-            if (e.cancelable) e.preventDefault();
             const rect = container.getBoundingClientRect();
             const touch = e.touches ? e.touches[0] : e;
+            // Prevent ship from jumping if touching the fire button
+            if (e.target === fireBtn) return;
+
             const nx = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
             const ny = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
             ship.position.x = nx * (bounds.w / 2);
             ship.position.y = ny * (bounds.h / 2);
             ship.rotation.z = -nx * 0.5;
-            ship.rotation.x = -ny * 0.2;
         }
 
         container.addEventListener('mousemove', move);
         container.addEventListener('touchmove', move, {passive: false});
-        container.addEventListener('touchstart', move, {passive: false});
 
-        function spawnLaser(now) {
-            if (now - lastSpawn < 1500) return;
-            lastSpawn = now;
-            const laser = new THREE.Mesh(
-                new THREE.BoxGeometry(bounds.w * 0.6, 0.2, 0.2),
-                new THREE.MeshBasicMaterial({color: 0x00e0ff, transparent: true, opacity: 0.8})
-            );
-            laser.position.set((Math.random()-0.5)*5, (Math.random()-0.5)*bounds.h, -100);
-            scene.add(laser);
-            obstacles.push(laser);
-        }
-
-        function spawnAsteroid(now) {
-            if (now - lastAsteroid < 4000) return;
-            lastAsteroid = now;
-            const ast = new THREE.Mesh(
-                new THREE.SphereGeometry(1.5, 8, 8),
-                new THREE.MeshPhongMaterial({color: 0x666666})
-            );
-            ast.position.set((Math.random()-0.5)*bounds.w, (Math.random()-0.5)*bounds.h, -120);
-            scene.add(ast);
-            asteroids.push(ast);
-        }
-
-        function update(now) {
-            if (!gameActive) return;
-            stars.rotation.z += 0.001;
-
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                const o = obstacles[i]; o.position.z += 1.5;
-                if (o.position.z > 12) { scene.remove(o); obstacles.splice(i, 1); continue; }
-                if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(o))) {
-                    hit(); scene.remove(o); obstacles.splice(i, 1);
-                }
-            }
-
-            for (let i = asteroids.length - 1; i >= 0; i--) {
-                const a = asteroids[i]; a.position.z += 0.8;
-                if (a.position.z > 12) { scene.remove(a); asteroids.splice(i, 1); continue; }
-                if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(a))) {
-                    hit(); scene.remove(a); asteroids.splice(i, 1);
-                }
-            }
-
-            spawnLaser(now);
-            spawnAsteroid(now);
-            renderer.render(scene, camera);
-            requestAnimationFrame(update);
-        }
-
-        function hit() {
-            lives--;
-            livesEl.innerText = `SHIELDS: ${lives}`;
-            if (lives <= 0) endGame(false);
-        }
-
+        // --- GAME LOOP ---
         function startGame() {
             gameActive = true;
-            lives = 3;
-            timeLeft = 60;
-            livesEl.innerText = 'SHIELDS: 3';
-            timerEl.innerText = '60s';
-            startOverlay.style.display = 'none';
-            winOverlay.style.display = 'none';
+            document.getElementById('startOverlay').style.display = 'none';
+            fireBtn.style.display = 'flex';
 
-            // Random Song Selection from Playlist
             if (player && player.playVideoAt) {
-                const randomTrack = Math.floor(Math.random() * 10); // Playlist has ~10-15 songs
                 player.setShuffle(true);
-                player.playVideoAt(randomTrack);
+                player.playVideoAt(Math.floor(Math.random() * 10));
                 player.unMute();
-                player.setVolume(50);
+                player.setVolume(60);
             }
-            
+
             timerInterval = setInterval(() => {
                 timeLeft--;
                 timerEl.innerText = `${timeLeft}s`;
                 if (timeLeft <= 0) endGame(true);
             }, 1000);
-            
+
+            requestAnimationFrame(update);
+        }
+
+        function update(now) {
+            if (!gameActive) return;
+            stars.rotation.z += 0.0005;
+
+            // Bullets
+            for(let i=bullets.length-1; i>=0; i--) {
+                bullets[i].position.z -= 2;
+                if(bullets[i].position.z < -110) {
+                    scene.remove(bullets[i]);
+                    bullets.splice(i,1);
+                }
+            }
+
+            // Enemies
+            for(let i=enemies.length-1; i>=0; i--) {
+                const e = enemies[i];
+                e.position.z += 1.1;
+
+                // Player Hit
+                if (e.position.distanceTo(ship.position) < 1.2) {
+                    lives--;
+                    livesEl.innerText = `SHIELDS: ${lives}`;
+                    scene.remove(e); enemies.splice(i,1);
+                    if (lives <= 0) endGame(false);
+                    continue;
+                }
+
+                // Bullet Hit
+                for(let j=bullets.length-1; j>=0; j--) {
+                    if (e.position.distanceTo(bullets[j].position) < 1.5) {
+                        kills++;
+                        scene.remove(e); enemies.splice(i,1);
+                        scene.remove(bullets[j]); bullets.splice(j,1);
+                        break;
+                    }
+                }
+
+                if (e && e.position.z > 12) {
+                    scene.remove(e); enemies.splice(i,1);
+                }
+            }
+
+            spawnEnemy(now);
+            renderer.render(scene, camera);
             requestAnimationFrame(update);
         }
 
         function endGame(won) {
             gameActive = false;
             clearInterval(timerInterval);
-            
-            // Stop Music
             if (player && player.stopVideo) player.stopVideo();
-
-            if (won) winOverlay.style.display = 'flex';
-            else { alert("SHIP DESTROYED"); restart(); }
+            fireBtn.style.display = 'none';
+            
+            if (won) {
+                document.getElementById('winOverlay').style.display = 'flex';
+                document.getElementById('finalKills').innerText = `ENEMIES NEUTRALIZED: ${kills}`;
+            } else {
+                alert("HULL BREACHED! MISSION FAILED.");
+                location.reload();
+            }
         }
-
-        function showRewardVideo() {
-            winOverlay.style.display = 'none';
-            videoOverlay.style.display = 'flex';
-        }
-
-        function restart() { location.reload(); }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            bounds = getBounds();
-        });
-
-        unmuteBtn.addEventListener('click', () => {
-            let src = document.getElementById('rewardVideo').src;
-            document.getElementById('rewardVideo').src = src.replace('&mute=1', '');
-            unmuteBtn.classList.add('hidden');
-        });
     </script>
 </body>
 </html>
