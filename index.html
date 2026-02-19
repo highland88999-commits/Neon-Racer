@@ -24,26 +24,29 @@
         #unmuteBtn { bottom: 20px; left: 20px; }
         #unmuteBtn.hidden { display: none; }
         canvas { display: block; width: 100%; height: 100%; }
+        #musicPlayer { position: absolute; visibility: hidden; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="gameContainer">
+        <div id="musicPlayer"></div>
+
         <div id="ui">
             <div id="lives" class="stat" style="color:var(--red)">SHIELDS: 3</div>
             <div id="timer" class="stat" style="color:var(--cyan)">60s</div>
         </div>
-        <div id="bgAudioContainer" style="display:none;">
-            <iframe id="bgAudioVideo" src="" frameborder="0"></iframe>
-        </div>
+
         <div id="startOverlay" class="overlay">
             <h1 style="color:var(--cyan); font-size:3rem; margin-bottom:20px;">SURVIVE 60 SECONDS</h1>
             <button class="btn" onclick="startGame()">ENGINE START</button>
         </div>
+
         <div id="winOverlay" class="overlay" style="display:none;">
             <h1>MISSION ACCOMPLISHED</h1>
             <p style="color:var(--pink); font-size:2.2rem;">Tatooine Airspace Clear</p>
             <button class="btn" onclick="showRewardVideo()">Continue</button>
         </div>
+
         <div id="videoOverlay" class="overlay" style="display:none;">
             <button id="skipBtn" class="control-btn" onclick="restart()">Skip</button>
             <button id="unmuteBtn" class="control-btn">Unmute</button>
@@ -54,6 +57,26 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // YouTube API Setup
+        let player;
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('musicPlayer', {
+                height: '0',
+                width: '0',
+                playerVars: {
+                    'listType': 'playlist',
+                    'list': 'PLN7QpbidlV6UPOHQoR9Vw3Bxq0Wj_DrCp',
+                    'autoplay': 0,
+                    'controls': 0
+                }
+            });
+        }
+
         const canvas = document.getElementById('gameCanvas');
         const container = document.getElementById('gameContainer');
         const timerEl = document.getElementById('timer');
@@ -61,30 +84,24 @@
         const startOverlay = document.getElementById('startOverlay');
         const winOverlay = document.getElementById('winOverlay');
         const videoOverlay = document.getElementById('videoOverlay');
-        const bgAudioVideo = document.getElementById('bgAudioVideo');
         const unmuteBtn = document.getElementById('unmuteBtn');
 
         let gameActive = false, timeLeft = 60, lives = 3;
         let obstacles = [], asteroids = [], lastSpawn = 0, lastAsteroid = 0;
         let timerInterval;
 
-        // --- THREE.JS SETUP ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000011);
         const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
         renderer.setSize(container.clientWidth, container.clientHeight);
-        
-        // Ship is at Z=0, Camera is at Z=10
         camera.position.z = 10;
 
-        // Lighting
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
         const sunLight = new THREE.PointLight(0xffddaa, 2, 1000);
         sunLight.position.set(50, 20, -100);
         scene.add(sunLight);
 
-        // Environment
         const starGeo = new THREE.BufferGeometry();
         const starPos = new Float32Array(3000 * 3);
         for(let i=0; i<9000; i++) starPos[i] = (Math.random()-0.5) * 1000;
@@ -92,43 +109,28 @@
         const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.5}));
         scene.add(stars);
 
-        // Ship Model
         const ship = new THREE.Group();
-        const bodyGeo = new THREE.BoxGeometry(1.2, 0.3, 1.5);
         const shipMat = new THREE.MeshPhongMaterial({color: 0x888888, shininess: 100});
-        const shipBody = new THREE.Mesh(bodyGeo, shipMat);
-        const wingGeo = new THREE.BoxGeometry(2.5, 0.1, 0.6);
-        const shipWings = new THREE.Mesh(wingGeo, shipMat);
-        ship.add(shipBody, shipWings);
+        ship.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 1.5), shipMat));
+        ship.add(new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.6), shipMat));
         scene.add(ship);
 
-        // --- MATH FOR MOVEMENT ---
         function getBounds() {
-            // Calculate visible width/height at Z=0 (where the ship is)
             const vFOV = THREE.MathUtils.degToRad(camera.fov);
             const height = 2 * Math.tan(vFOV / 2) * camera.position.z;
-            const width = height * camera.aspect;
-            return { w: width, h: height };
+            return { w: height * camera.aspect, h: height };
         }
         let bounds = getBounds();
 
-        // --- INPUT HANDLING ---
         function move(e) {
             if (!gameActive) return;
             if (e.cancelable) e.preventDefault();
-
             const rect = container.getBoundingClientRect();
             const touch = e.touches ? e.touches[0] : e;
-
-            // Normalize mouse/touch position to -1 to +1
             const nx = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
             const ny = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
-
-            // Direct mapping: Ship position = NormalizedCoord * HalfFrustumSize
             ship.position.x = nx * (bounds.w / 2);
             ship.position.y = ny * (bounds.h / 2);
-
-            // Visual Polish: Bank the ship
             ship.rotation.z = -nx * 0.5;
             ship.rotation.x = -ny * 0.2;
         }
@@ -137,7 +139,6 @@
         container.addEventListener('touchmove', move, {passive: false});
         container.addEventListener('touchstart', move, {passive: false});
 
-        // --- GAME LOGIC ---
         function spawnLaser(now) {
             if (now - lastSpawn < 1500) return;
             lastSpawn = now;
@@ -164,29 +165,21 @@
 
         function update(now) {
             if (!gameActive) return;
-
             stars.rotation.z += 0.001;
 
-            // Update Lasers
             for (let i = obstacles.length - 1; i >= 0; i--) {
-                const o = obstacles[i];
-                o.position.z += 1.5;
+                const o = obstacles[i]; o.position.z += 1.5;
                 if (o.position.z > 12) { scene.remove(o); obstacles.splice(i, 1); continue; }
                 if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(o))) {
-                    hit();
-                    scene.remove(o); obstacles.splice(i, 1);
+                    hit(); scene.remove(o); obstacles.splice(i, 1);
                 }
             }
 
-            // Update Asteroids
             for (let i = asteroids.length - 1; i >= 0; i--) {
-                const a = asteroids[i];
-                a.position.z += 0.8;
-                a.rotation.x += 0.02;
+                const a = asteroids[i]; a.position.z += 0.8;
                 if (a.position.z > 12) { scene.remove(a); asteroids.splice(i, 1); continue; }
                 if (new THREE.Box3().setFromObject(ship).intersectsBox(new THREE.Box3().setFromObject(a))) {
-                    hit();
-                    scene.remove(a); asteroids.splice(i, 1);
+                    hit(); scene.remove(a); asteroids.splice(i, 1);
                 }
             }
 
@@ -210,7 +203,15 @@
             timerEl.innerText = '60s';
             startOverlay.style.display = 'none';
             winOverlay.style.display = 'none';
-            bgAudioVideo.src = 'https://www.youtube.com/embed/o4uyUol4wBI?autoplay=1';
+
+            // Random Song Selection from Playlist
+            if (player && player.playVideoAt) {
+                const randomTrack = Math.floor(Math.random() * 10); // Playlist has ~10-15 songs
+                player.setShuffle(true);
+                player.playVideoAt(randomTrack);
+                player.unMute();
+                player.setVolume(50);
+            }
             
             timerInterval = setInterval(() => {
                 timeLeft--;
@@ -224,6 +225,10 @@
         function endGame(won) {
             gameActive = false;
             clearInterval(timerInterval);
+            
+            // Stop Music
+            if (player && player.stopVideo) player.stopVideo();
+
             if (won) winOverlay.style.display = 'flex';
             else { alert("SHIP DESTROYED"); restart(); }
         }
