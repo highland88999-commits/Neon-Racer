@@ -3,39 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Precision Lock</title>
+    <title>Neon Star Racer | 3-Life Precision</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        :root { --pink: #ff00ff; --cyan: #00e0ff; --gold: #FFD700; }
+        :root { --pink: #ff00ff; --cyan: #00e0ff; --gold: #FFD700; --red: #ff3333; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #000; 
-            color: #fff; 
-            font-family: 'Segoe UI', sans-serif; 
-            overflow: hidden; 
-            height: 100vh; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-        }
+        body { background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; }
         
         #gameContainer {
             position: relative;
-            width: 100vw;
-            height: 100vh;
-            max-width: 500px;
-            max-height: 900px;
+            width: 100vw; height: 100vh;
+            max-width: 500px; max-height: 900px;
             border: 4px solid var(--cyan);
             background: #05050a;
             overflow: hidden;
             touch-action: none;
         }
 
-        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; padding: 20px; }
-        .hud { font-family: 'VT323', monospace; text-shadow: 0 0 10px currentColor; }
-        #timer { color: var(--gold); font-size: 4rem; text-align: center; width: 100%; margin-top: 20px; }
+        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; padding: 20px; display: flex; justify-content: space-between; }
+        .hud { font-family: 'VT323', monospace; text-shadow: 0 0 10px currentColor; font-size: 2.5rem; }
+        #timer { color: var(--gold); }
+        #lives { color: var(--red); }
 
-        canvas { width: 100%; height: 100%; display: block; }
+        canvas { width: 100%; height: 100%; display: block; cursor: none; }
         
         #overlay { 
             position: absolute; inset: 0; 
@@ -46,13 +36,13 @@
         
         .btn {
             background: transparent;
-            border: 3px solid var(--pink);
-            color: var(--pink);
+            border: 3px solid var(--cyan);
+            color: var(--cyan);
             padding: 20px 50px;
             font-family: 'VT323', monospace;
             font-size: 2.5rem;
             cursor: pointer;
-            box-shadow: 0 0 20px var(--pink);
+            box-shadow: 0 0 20px var(--cyan);
             text-transform: uppercase;
         }
     </style>
@@ -61,11 +51,12 @@
 
 <div id="gameContainer">
     <div id="ui-layer">
+        <div id="lives" class="hud">SHIELDS: 3</div>
         <div id="timer" class="hud">60</div>
     </div>
 
     <div id="overlay">
-        <h1 class="hud" style="color:var(--cyan); font-size: 3rem; margin-bottom: 30px;">NEON STAR RACER</h1>
+        <h1 class="hud" style="color:var(--pink); font-size: 3rem; margin-bottom: 30px;">NEON STAR RACER</h1>
         <button class="btn" onclick="startGame()">START MISSION</button>
     </div>
 
@@ -77,12 +68,15 @@
     const canvas = document.getElementById('gameCanvas');
     const container = document.getElementById('gameContainer');
     const timerEl = document.getElementById('timer');
+    const livesEl = document.getElementById('lives');
     const overlay = document.getElementById('overlay');
 
     let gameActive = false;
     let timeLeft = 60;
+    let lives = 3;
     let obstacles = [];
-    let speed = 0.6;
+    let speed = 0.7;
+    const laserColors = [0xff00ff, 0x00e0ff, 0x33ff33, 0xff9900];
     
     // Three.js Setup
     const scene = new THREE.Scene();
@@ -90,43 +84,43 @@
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
     camera.position.z = 12;
 
     // --- SHIP DESIGN ---
     const ship = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1, 0.4, 2), new THREE.MeshPhongMaterial({color: 0x444444}));
-    const wingL = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x222222}));
-    wingL.position.set(-1.2, 0, 0.5); wingL.rotation.x = Math.PI/2;
-    const wingR = wingL.clone(); wingR.position.x = 1.2;
-    const connector = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.05, 0.05), new THREE.MeshBasicMaterial({color: 0x00e0ff}));
-    ship.add(body, wingL, wingR, connector);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2), new THREE.MeshPhongMaterial({color: 0x444444}));
+    const wingL = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.8), new THREE.MeshPhongMaterial({color: 0x222222}));
+    wingL.position.set(-1.4, 0, 0.5); wingL.rotation.x = Math.PI/2;
+    const wingR = wingL.clone(); wingR.position.x = 1.4;
+    const plasma = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.05, 0.05), new THREE.MeshBasicMaterial({color: 0x00e0ff}));
+    ship.add(body, wingL, wingR, plasma);
     scene.add(ship);
 
-    // --- DYNAMIC BOUNDARY CALCULATION ---
-    // This calculates exactly how many 3D units wide/high the screen is at the ship's Z-depth
+    // --- SCREEN LOCK MATH ---
     function getVisibleBounds() {
         const vFOV = THREE.MathUtils.degToRad(camera.fov);
         const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - ship.position.z);
         const width = height * camera.aspect;
-        return { 
-            x: (width / 2) - 1.5, // Subtracting ship width padding
-            y: (height / 2) - 1.0  // Subtracting ship height padding
-        };
+        return { x: (width / 2) - 1.8, y: (height / 2) - 1.2 };
     }
     let bounds = getVisibleBounds();
 
-    function spawnObstacle() {
-        if (Math.random() > 0.07) return;
-        const isBar = Math.random() > 0.4;
-        let mesh;
-        if (isBar) {
-            mesh = new THREE.Mesh(new THREE.BoxGeometry(30, 0.5, 0.5), new THREE.MeshBasicMaterial({color: 0xff00ff}));
-            mesh.position.set(0, (Math.random() - 0.5) * bounds.y * 2.5, -80);
+    function spawnLaser() {
+        if (Math.random() > 0.08) return;
+        
+        const isHorizontal = Math.random() > 0.5;
+        const color = laserColors[Math.floor(Math.random() * laserColors.length)];
+        
+        let geo = isHorizontal ? new THREE.BoxGeometry(40, 0.3, 0.3) : new THREE.BoxGeometry(0.3, 40, 0.3);
+        let mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color: color}));
+        
+        if (isHorizontal) {
+            mesh.position.set(0, (Math.random() - 0.5) * bounds.y * 2.2, -100);
         } else {
-            mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8), new THREE.MeshStandardMaterial({color: 0x00e0ff}));
-            mesh.position.set((Math.random() - 0.5) * bounds.x * 2, (Math.random() - 0.5) * bounds.y * 2, -80);
+            mesh.position.set((Math.random() - 0.5) * bounds.x * 2.2, 0, -100);
         }
+        
         scene.add(mesh);
         obstacles.push(mesh);
     }
@@ -140,9 +134,12 @@
 
             const shipBox = new THREE.Box3().setFromObject(ship);
             const obsBox = new THREE.Box3().setFromObject(obs);
+            
             if (shipBox.intersectsBox(obsBox)) {
-                gameOver();
-                return;
+                takeDamage();
+                scene.remove(obs);
+                obstacles.splice(i, 1);
+                continue;
             }
 
             if (obs.position.z > 15) {
@@ -151,28 +148,27 @@
             }
         }
 
-        spawnObstacle();
-        speed += 0.0002;
+        spawnLaser();
+        speed += 0.0001;
         renderer.render(scene, camera);
         requestAnimationFrame(update);
     }
 
-    // --- THE THUMB LOCK ---
+    // --- DIRECT THUMB LOCK ---
     const handleInput = (e) => {
         if (!gameActive) return;
         const rect = container.getBoundingClientRect();
         const x = e.touches ? e.touches[0].clientX : e.clientX;
         const y = e.touches ? e.touches[0].clientY : e.clientY;
 
-        // Map 0-1 percentage of screen to 3D bounds
         const normX = (x - rect.left) / rect.width;
         const normY = (y - rect.top) / rect.height;
 
-        // Mathematical Lock to thumb position within bounds
-        ship.position.x = (normX * 2 - 1) * bounds.x;
-        ship.position.y = -(normY * 2 - 1) * bounds.y;
+        // Ship is now mathematically bound to the finger position relative to the container
+        ship.position.x = THREE.MathUtils.clamp((normX * 2 - 1) * bounds.x * 1.2, -bounds.x, bounds.x);
+        ship.position.y = THREE.MathUtils.clamp(-(normY * 2 - 1) * bounds.y * 1.2, -bounds.y, bounds.y);
 
-        // Visual tilt proportional to position
+        // Visual tilt for flair
         ship.rotation.z = -ship.position.x * 0.1;
         ship.rotation.x = -ship.position.y * 0.1;
     };
@@ -180,14 +176,29 @@
     container.addEventListener('mousemove', handleInput);
     container.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive:false});
 
+    function takeDamage() {
+        lives--;
+        livesEl.innerText = `SHIELDS: ${lives}`;
+        container.style.borderColor = 'red';
+        setTimeout(() => container.style.borderColor = 'var(--cyan)', 200);
+        
+        if (lives <= 0) {
+            gameActive = false;
+            alert("SHIELDS DEPLETED. REBOOTING...");
+            location.reload();
+        }
+    }
+
     function startGame() {
         gameActive = true;
         timeLeft = 60;
-        speed = 0.6;
+        lives = 3;
+        speed = 0.7;
+        livesEl.innerText = `SHIELDS: 3`;
         obstacles.forEach(o => scene.remove(o));
         obstacles = [];
         overlay.style.display = 'none';
-        bounds = getVisibleBounds(); // Re-calculate in case of resize
+        bounds = getVisibleBounds();
 
         const timer = setInterval(() => {
             if (!gameActive) { clearInterval(timer); return; }
@@ -200,12 +211,6 @@
             }
         }, 1000);
         update();
-    }
-
-    function gameOver() {
-        gameActive = false;
-        alert("CRITICAL IMPACT: RETRY");
-        location.reload();
     }
 
     window.addEventListener('resize', () => {
