@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Neon Star Racer | Audio-Reactive Survival</title>
+    <title>Neon Star Racer | Audio-Reactive Precision</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         :root { --pink: #ff00ff; --cyan: #00e0ff; --red: #ff3131; }
@@ -14,7 +14,7 @@
         .stat { font-size: 2rem; text-shadow: 0 0 10px rgba(0,224,255,0.5); }
         .overlay { position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
         .btn { background: none; border: 2px solid var(--pink); color: var(--pink); padding: 15px 40px; font-family: 'VT323', monospace; font-size: 2rem; cursor: pointer; box-shadow: 0 0 15px var(--pink); margin: 20px; }
-        #musicPlayer { position: absolute; top: -100px; left: -100px; width: 1px; height: 1px; pointer-events: none; opacity: 0; }
+        #musicPlayer { position: absolute; top: -100px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
         canvas { display: block; width: 100%; height: 100%; }
     </style>
 </head>
@@ -29,7 +29,7 @@
 
         <div id="startOverlay" class="overlay">
             <h1 style="color:var(--cyan); font-size:2.8rem; margin-bottom:10px;">SURVIVE 90 SECONDS</h1>
-            <p style="color:white; font-family:'VT323'; margin-bottom: 20px;">STARS REACT TO BEAT</p>
+            <p style="color:white; font-family:'VT323'; margin-bottom: 20px;">ENGINE START UNLOCKS AUDIO</p>
             <button class="btn" onclick="startGame()">ENGINE START</button>
         </div>
 
@@ -48,9 +48,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- MUSIC ENGINE ---
+        // --- YOUTUBE API SETUP ---
         let player;
-        let isPlayerReady = false;
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
@@ -63,10 +62,8 @@
                     'list': 'PLCrg_O54Bc6kfFqK1kL25uXSGnoQk6cuV',
                     'autoplay': 0,
                     'controls': 0,
-                    'enablejsapi': 1
-                },
-                events: {
-                    'onReady': () => { isPlayerReady = true; console.log("System: Audio Ready"); }
+                    'enablejsapi': 1,
+                    'origin': window.location.origin
                 }
             });
         }
@@ -88,12 +85,12 @@
         renderer.setSize(container.clientWidth, container.clientHeight);
         camera.position.z = 10;
 
-        // --- STAR FIELD (Reactive) ---
+        // --- AUDIO-REACTIVE STARFIELD ---
         const starGeo = new THREE.BufferGeometry();
-        const starPos = new Float32Array(3500 * 3);
-        for(let i=0; i<10500; i++) starPos[i] = (Math.random()-0.5) * 800;
+        const starPos = new Float32Array(4000 * 3);
+        for(let i=0; i<12000; i++) starPos[i] = (Math.random()-0.5) * 800;
         starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.5, transparent: true}));
+        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.5}));
         scene.add(stars);
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -143,9 +140,10 @@
             if (now - lastCelestial > 18000) {
                 lastCelestial = now;
                 const isMoon = Math.random() > 0.5;
-                const geo = new THREE.SphereGeometry(isMoon ? 12 : 20, 32, 32);
-                const mat = new THREE.MeshBasicMaterial({color: isMoon ? 0x999999 : 0xffaa00});
-                const body = new THREE.Mesh(geo, mat);
+                const body = new THREE.Mesh(
+                    new THREE.SphereGeometry(isMoon ? 12 : 18, 32, 32), 
+                    new THREE.MeshBasicMaterial({color: isMoon ? 0x999999 : 0xffaa00})
+                );
                 body.position.set((Math.random()-0.5)*200, (Math.random()-0.5)*100, -400);
                 scene.add(body);
                 celestialBody.push(body);
@@ -163,8 +161,8 @@
             if (!gameActive) return;
             let speedMult = isLightSpeed ? 5 : 1;
 
-            // Reactive Stars (Simulation)
-            const beat = 1 + Math.abs(Math.sin(now * 0.008)) * 0.2;
+            // AUDIO REACTIVITY (PULSE SIMULATION)
+            const beat = 1 + Math.abs(Math.sin(now * 0.01)) * 0.15;
             stars.scale.set(beat, beat, beat);
             stars.rotation.z += 0.001;
 
@@ -178,7 +176,7 @@
             });
 
             shootingStars.forEach((s, i) => {
-                s.position.z += 6; s.position.x -= 2;
+                s.position.z += 6; s.position.x -= 1.5;
                 if(s.position.z > 20) { scene.remove(s); shootingStars.splice(i,1); }
             });
 
@@ -204,17 +202,19 @@
         }
 
         function startGame() {
-            gameActive = true;
+            // STEP 1: UI CHANGE
             document.getElementById('startOverlay').style.display = 'none';
+            gameActive = true;
 
-            // FORCE MUSIC START
-            if (player && typeof player.playVideoAt === 'function') {
-                player.setShuffle(true);
-                player.setVolume(70);
-                player.playVideoAt(Math.floor(Math.random() * 15));
+            // STEP 2: HARDWARE TRIGGER FOR AUDIO
+            if (player && player.playVideoAt) {
                 player.unMute();
+                player.setShuffle(true);
+                player.playVideoAt(Math.floor(Math.random() * 20));
+                player.setVolume(70);
             }
 
+            // STEP 3: START LOGIC
             timerInterval = setInterval(() => {
                 timeLeft--; timerEl.innerText = `${timeLeft}s`;
                 if (timeLeft <= 0) endGame(true);
@@ -225,9 +225,12 @@
         function endGame(won) {
             gameActive = false;
             clearInterval(timerInterval);
-            if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+            
+            // STOP AUDIO
+            if (player && player.pauseVideo) player.pauseVideo();
+
             if (won) document.getElementById('winOverlay').style.display = 'flex';
-            else { alert("SYSTEM FAILURE"); location.reload(); }
+            else { alert("SYSTEM FAILURE: SHIELDS DEPLETED"); location.reload(); }
         }
 
         function showRewardVideo() {
