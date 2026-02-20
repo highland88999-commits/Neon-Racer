@@ -59,7 +59,7 @@
                 height: '1', width: '1',
                 playerVars: { 
                     'listType': 'playlist', 
-                    'list': 'PLCrg_O54Bc6kfFqK1kL25uXSGnoQk6cuV',
+                    'list': 'PLeMER9rHllyCIchd-ZGKTzAnAXYx4FSOz',
                     'autoplay': 0, 'controls': 0, 'enablejsapi': 1
                 }
             });
@@ -128,7 +128,7 @@
                 scene.add(ast);
                 obstacles.push(ast);
             }
-            if (now - lastWormhole > 15000) {
+            if (now - lastWormhole > 7500) {
                 lastWormhole = now;
                 const ring = new THREE.Mesh(new THREE.TorusGeometry(2, 0.1, 16, 100), new THREE.MeshBasicMaterial({color: 0x00ffff}));
                 ring.position.set((Math.random()-0.5)*bounds.w*0.6, (Math.random()-0.5)*bounds.h*0.6, -150);
